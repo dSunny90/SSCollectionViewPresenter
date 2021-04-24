@@ -1,0 +1,13 @@
+# Build artifacts
+
+# macOS specific
+.DS_Store
+
+# Xcode project
+*.xcworkspace
+xcuserdata/
+
+# SPM
+/.build/
+/Packages/
+/.swiftpm/
