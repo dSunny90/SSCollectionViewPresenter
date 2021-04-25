@@ -13,9 +13,18 @@ let package = Package(
             targets: ["SSCollectionViewPresenter"]
         )
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/dSunny90/SendingState.git",
+            from: "0.1.0"
+        )
+    ],
     targets: [
         .target(
             name: "SSCollectionViewPresenter",
+            dependencies: [
+                "SendingState"
+            ],
             path: "Sources/SSCollectionViewPresenter"
         ),
         .testTarget(
