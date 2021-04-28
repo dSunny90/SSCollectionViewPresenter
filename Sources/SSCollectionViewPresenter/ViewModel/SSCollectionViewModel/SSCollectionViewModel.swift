@@ -7,8 +7,6 @@
 
 import UIKit
 
-@_exported import SendingState
-
 fileprivate typealias SectionInfo = SSCollectionViewModel.SectionInfo
 
 /// A data model that represents the entire content of a collection view,
