@@ -25,14 +25,145 @@ public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCol
     /// The current sections to be displayed in the collection view.
     internal var sections: [SectionInfo] = []
 
+    // MARK: - Page Map
+
+    /// The current page number for paginated API requests.
+    /// Use this when fetching data from a page-based RESTful API
+    /// to update your view model.
+    public var page: Int = 0
+
+    /// A flag indicating whether there is more data available for pagination.
+    /// Set this based on the API response to control whether a next request
+    /// should be triggered.
+    public var hasNext: Bool = false
+
+    /// Maps page numbers to their original sections.
+    /// When non-empty, `sections` is rebuilt as a merged view of all pages
+    /// via `rebuildMergedSections()`.
+    internal var pageMap: [Int: [SectionInfo]] = [:]
+
+    /// The number of pages currently stored.
+    public var pageCount: Int { pageMap.count }
+
+    /// Whether any pages have been stored via `setPage(_:sections:)`.
+    public var hasPageData: Bool { !pageMap.isEmpty }
+
     // MARK: - Init.
 
-    public init(sections: [SectionInfo] = []) {
+    public init(sections: [SectionInfo] = [], page: Int = 0, hasNext: Bool = false) {
         self.sections = sections
+        self.page = page
+        self.hasNext = hasNext
     }
 
     public init() {
         self.init(sections: [])
+    }
+
+    // MARK: - Page Management
+
+    /// Stores sections for a given page and rebuilds the merged sections array.
+    ///
+    /// If sections for this page already exist, they are replaced entirely.
+    /// After storing, `rebuildMergedSections()` is called to update
+    /// the flat `sections` array used by the collection view.
+    ///
+    /// - Parameters:
+    ///   - page: The page number (zero-based).
+    ///   - pageSections: The sections belonging to this page.
+    public mutating func setPage(_ page: Int, sections pageSections: [SectionInfo]) {
+        pageMap[page] = pageSections
+        self.page = page
+        rebuildMergedSections()
+    }
+
+    /// Returns the sections stored for a specific page, if any.
+    public func sections(forPage page: Int) -> [SectionInfo]? {
+        pageMap[page]
+    }
+
+    /// Removes the sections stored for a specific page and rebuilds
+    /// the merged sections.
+    public mutating func removePage(_ page: Int) {
+        pageMap.removeValue(forKey: page)
+        rebuildMergedSections()
+    }
+
+    /// Removes all page data and clears the merged sections.
+    /// Use this for pull-to-refresh scenarios.
+    public mutating func removeAllPages() {
+        pageMap.removeAll()
+        sections.removeAll()
+        page = 0
+        hasNext = false
+    }
+
+    /// Finds the highest page number that contains a section
+    /// with the given identifier.
+    ///
+    /// Use this to determine which page to request next
+    /// for a specific section.
+    ///
+    /// ```swift
+    /// let targetPage = vm.findPage(forSectionIdentifier: "filter") ?? 0
+    /// ```
+    ///
+    /// - Returns: The page number, or `nil` if no page contains
+    ///   a section with that identifier.
+    public func findPage(forSectionIdentifier id: String) -> Int? {
+        pageMap.keys.sorted(by: >).first { page in
+            pageMap[page]?.contains(where: { $0.identifier == id }) == true
+        }
+    }
+
+    /// Rebuilds the flat `sections` array by merging all pages
+    /// in ascending page order.
+    ///
+    /// **Merge rules:**
+    /// - Sections with the same non-nil `identifier` across pages
+    ///   have their items concatenated. Headers/footers from later
+    ///   pages override earlier ones.
+    /// - Sections with nil identifiers are always appended as
+    ///   new sections (they never merge).
+    internal mutating func rebuildMergedSections() {
+        guard !pageMap.isEmpty else { return }
+
+        var merged: [SectionInfo] = []
+        var identifierIndex: [String: Int] = [:]
+
+        for pageKey in pageMap.keys.sorted() {
+            guard let pageSections = pageMap[pageKey] else { continue }
+
+            for section in pageSections {
+                if let id = section.identifier, let idx = identifierIndex[id] {
+                    merged[idx].items.append(contentsOf: section.items)
+
+                    if let header = section.header {
+                        merged[idx].header = header
+                    }
+                    if let footer = section.footer {
+                        merged[idx].footer = footer
+                    }
+                    if let inset = section.sectionInset {
+                        merged[idx].sectionInset = inset
+                    }
+                    if let lineSpacing = section.minimumLineSpacing {
+                        merged[idx].minimumLineSpacing = lineSpacing
+                    }
+                    if let itemSpacing = section.minimumInteritemSpacing {
+                        merged[idx].minimumInteritemSpacing = itemSpacing
+                    }
+                } else {
+                    let newIdx = merged.count
+                    merged.append(section)
+                    if let id = section.identifier {
+                        identifierIndex[id] = newIdx
+                    }
+                }
+            }
+        }
+
+        sections = merged
     }
 
     // MARK: - RandomAccessCollection Methods

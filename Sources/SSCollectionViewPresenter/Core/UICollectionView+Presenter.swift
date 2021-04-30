@@ -70,6 +70,21 @@ extension UICollectionView {
         }
     }
 
+    internal var boundsLength: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? bounds.width : bounds.height
+    }
+
+    internal var contentLength: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentSize.width : contentSize.height
+    }
+
+    internal var currentOffset: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentOffset.x : contentOffset.y
+    }
+
     public func registerDefaultCell() {
         register(UICollectionViewCell.self, forCellWithReuseIdentifier: String(describing: UICollectionViewCell.self))
     }

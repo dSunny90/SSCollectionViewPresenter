@@ -31,6 +31,7 @@ public final class SSCollectionViewPresenter: NSObject {
                     collectionView.registerFooter(footer.binderType)
                 }
             }
+            isLoadingNextPage = false
         }
     }
 
@@ -38,6 +39,14 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// The action handler responsible for dispatching actions.
     internal var actionHandler: AnyActionHandlingProvider?
+
+    // MARK: - Pagination
+
+    /// Closure called when the next page of data should be loaded.
+    internal var nextRequestBlock: ((SSCollectionViewModel) -> Void)?
+
+    /// Flag indicating whether a pagination request is in progress.
+    internal var isLoadingNextPage: Bool = false
 
     // MARK: - Collection View Reference
 
@@ -65,6 +74,22 @@ public final class SSCollectionViewPresenter: NSObject {
             ofKind: UICollectionView.elementKindSectionFooter
         )
     }
+
+    // MARK: - Pagination
+
+    /// Determines whether the next page should be loaded based on scroll position.
+    ///
+    /// Checks if the user has scrolled close enough to the end and whether
+    /// pagination is available and not already in progress.
+    ///
+    /// - Returns: `true` if the next page should be requested; otherwise, `false`.
+    internal func shouldLoadNextPage() -> Bool {
+        guard let collectionView = collectionView, let viewModel = viewModel,
+              viewModel.hasNext, isLoadingNextPage == false
+        else { return false }
+
+        return (collectionView.currentOffset > collectionView.contentLength - collectionView.boundsLength * 3)
+    }
 }
 
 // MARK: - UICollectionViewDataSource
@@ -72,6 +97,12 @@ public final class SSCollectionViewPresenter: NSObject {
 extension SSCollectionViewPresenter: UICollectionViewDataSource {
     public func numberOfSections(in collectionView: UICollectionView) -> Int {
         guard let viewModel = viewModel else { return 0 }
+
+        if viewModel.sections.isEmpty, viewModel.hasNext {
+            isLoadingNextPage = true
+            nextRequestBlock?(viewModel)
+        }
+
         return viewModel.sections.count
     }
 
@@ -83,9 +114,17 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
 
     public func collectionView(_ collectionView: UICollectionView,
                                cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item]
+        guard let viewModel = viewModel
         else { return collectionView.dequeueDefaultCell(for: indexPath) }
 
+        defer {
+            if shouldLoadNextPage() {
+                isLoadingNextPage = true
+                nextRequestBlock?(viewModel)
+            }
+        }
+
+        let item = viewModel[indexPath.section].items[indexPath.item]
         let cell = collectionView.dequeueReusableCell(
             withReuseIdentifier: String(describing: item.binderType),
             for: indexPath
@@ -159,7 +198,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                insetForSectionAt section: Int) -> UIEdgeInsets {
-        guard let sectionInset = viewModel?[section].sectionInsets
+        guard let sectionInset = viewModel?[section].sectionInset
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.sectionInset
