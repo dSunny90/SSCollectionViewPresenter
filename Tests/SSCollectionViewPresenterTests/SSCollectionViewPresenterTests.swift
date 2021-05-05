@@ -17,9 +17,9 @@ class SSCollectionViewPresenterTests: XCTestCase {
         XCTAssertNotNil(cv.presenter, "Presenter should be attached after setupPresenter()")
 
         let models = (0..<5).map { TestModel(id: "\($0)", title: "Model \($0)") }
-        let items = models.map { BindingStore<TestModel, TestCell>(state: $0).eraseToAnyBindingStore() }
-        let header = BindingStore<TestModel, TestReusableView>(state: TestModel(id: "10", title: "Header 10")).eraseToAnyBindingStore()
-        let footer = BindingStore<TestModel, TestReusableView>(state: TestModel(id: "20", title: "Footer 20")).eraseToAnyBindingStore()
+        let items = models.map { SSCollectionViewModel.CellInfo(BindingStore<TestModel, TestCell>(state: $0)) }
+        let header = SSCollectionViewModel.ReusableViewInfo(BindingStore<TestModel, TestReusableView>(state: TestModel(id: "10", title: "Header 10")))
+        let footer = SSCollectionViewModel.ReusableViewInfo(BindingStore<TestModel, TestReusableView>(state: TestModel(id: "20", title: "Footer 20")))
         let section = SSCollectionViewModel.SectionInfo(items: items, header: header, footer: footer)
         let viewModel = SSCollectionViewModel(sections: [section])
 
@@ -58,7 +58,7 @@ class SSCollectionViewPresenterTests: XCTestCase {
     }
 }
 
-final class TestReusableView: UICollectionReusableView, Configurable {
+final class TestReusableView: UICollectionReusableView, SSCollectionReusableViewProtocol {
     let titleLabel = UILabel()
 
     var configurer: (TestReusableView, TestModel) -> Void {
@@ -68,7 +68,7 @@ final class TestReusableView: UICollectionReusableView, Configurable {
     }
 }
 
-final class TestCell: UICollectionViewCell, Configurable {
+final class TestCell: UICollectionViewCell, SSCollectionViewCellProtocol {
     let titleLabel = UILabel()
 
     var configurer: (TestCell, TestModel) -> Void {

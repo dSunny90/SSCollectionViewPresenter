@@ -10,6 +10,17 @@ import UIKit
 @_exported import SendingState
 
 extension SendingState where Base: UICollectionView {
+    /// Returns the currently selected items.
+    ///
+    /// The presenter automatically tracks selections and deselections via
+    /// `collectionView(_:didSelectItemAt:)` and
+    /// `collectionView(_:didDeselectItemAt:)`.
+    /// When items are removed from the view model, they are also removed
+    /// from this collection.
+    public var selectedItems: [SSCollectionViewModel.CellInfo] {
+        Array(base.presenter?.viewModel?.selectedItems ?? [])
+    }
+
     // MARK: - Configuration
 
     /// Sets up the presenter for the collection view
@@ -45,6 +56,42 @@ extension SendingState where Base: UICollectionView {
         var model = base.presenter?.viewModel ?? SSCollectionViewModel()
         model.removeAllPages()
         base.presenter?.viewModel = model
+    }
+
+    // MARK: - Section/Item Control
+
+    /// Updates the state of a visible cell without reloading it.
+    ///
+    /// - Parameters:
+    ///   - newState: The new state to apply to the cell.
+    ///   - indexPath: The index path of the cell to update.
+    public func reconfigureItem<T>(_ newState: T, at indexPath: IndexPath) {
+        base.presenter?.reconfigureItem(newState, at: indexPath)
+    }
+
+    /// Updates the state of a visible section header without reloading it.
+    ///
+    /// - Parameters:
+    ///   - newState: The new state to apply to the header view.
+    ///   - section: The index of the section whose header to update.
+    @available(iOS 9.0, *)
+    public func reconfigureHeader<T>(_ newState: T, at section: Int) {
+        base.presenter?.reconfigureHeader(newState, at: section)
+    }
+
+    /// Updates the state of a visible section footer without reloading it.
+    ///
+    /// - Parameters:
+    ///   - newState: The new state to apply to the footer view.
+    ///   - section: The index of the section whose footer to update.
+    @available(iOS 9.0, *)
+    public func reconfigureFooter<T>(_ newState: T, at section: Int) {
+        base.presenter?.reconfigureFooter(newState, at: section)
+    }
+
+    /// Clears the selection tracking state.
+    public func clearSelectedItems() {
+        base.presenter?.clearSelectedItems()
     }
 
     // MARK: - Page-Based Loading
