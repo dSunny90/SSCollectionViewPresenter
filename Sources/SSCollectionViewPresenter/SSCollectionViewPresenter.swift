@@ -75,6 +75,126 @@ public final class SSCollectionViewPresenter: NSObject {
         )
     }
 
+    // MARK: - Section/Item Control
+
+    /// Updates the state of a visible cell without reloading it.
+    ///
+    /// Applies `newState` directly to the bound cell if it is currently visible.
+    /// Has no effect if the cell is not visible or if `newState` does not match
+    /// the existing state type.
+    ///
+    /// - Parameters:
+    ///   - newState: The new state to apply to the cell.
+    ///   - indexPath: The index path of the cell to update.
+    internal func reconfigureItem<T>(_ newState: T, at indexPath: IndexPath) {
+        guard let collectionView = collectionView,
+              let viewModel = viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item < viewModel[indexPath.section].count else { return }
+
+        let item = viewModel[indexPath.section][indexPath.item]
+        guard item.state is T else { return }
+
+        if let cell = collectionView.cellForItem(at: indexPath) {
+            item.state = newState
+            item.apply(to: cell)
+        }
+    }
+
+    /// Updates the state of a visible section header without reloading it.
+    ///
+    /// Applies `newState` directly to the bound supplementary view if it is
+    /// currently visible. Has no effect if the header is not visible or if
+    /// `newState` does not match the existing state type.
+    ///
+    /// - Parameters:
+    ///   - newState: The new state to apply to the header view.
+    ///   - section: The index of the section whose header to update.
+    @available(iOS 9.0, *)
+    internal func reconfigureHeader<T>(_ newState: T, at section: Int) {
+        guard let collectionView = collectionView,
+              let viewModel = viewModel,
+              section < viewModel.count else { return }
+
+        guard let header = viewModel[section].header,
+              header.state is T else { return }
+
+        if let view = collectionView.supplementaryView(
+            forElementKind: UICollectionView.elementKindSectionHeader,
+            at: IndexPath(item: 0, section: section)
+        ) {
+            header.state = newState
+            header.apply(to: view)
+        }
+    }
+
+    /// Updates the state of a visible section footer without reloading it.
+    ///
+    /// Applies `newState` directly to the bound supplementary view if it is
+    /// currently visible. Has no effect if the footer is not visible or if
+    /// `newState` does not match the existing state type.
+    ///
+    /// - Parameters:
+    ///   - newState: The new state to apply to the footer view.
+    ///   - section: The index of the section whose footer to update.
+    @available(iOS 9.0, *)
+    internal func reconfigureFooter<T>(_ newState: T, at section: Int) {
+        guard let collectionView = collectionView,
+              let viewModel = viewModel,
+              section < viewModel.count else { return }
+
+        guard let footer = viewModel[section].footer,
+              footer.state is T else { return }
+
+        if let view = collectionView.supplementaryView(
+            forElementKind: UICollectionView.elementKindSectionFooter,
+            at: IndexPath(item: 0, section: section)
+        ) {
+            footer.state = newState
+            footer.apply(to: view)
+        }
+    }
+
+    /// Clears the selection tracking state.
+    ///
+    /// This only clears the presenter's internal tracking set.
+    /// To also visually deselect cells, iterate
+    /// `UICollectionView.indexPathsForSelectedItems` and call
+    /// `deselectItem(at:animated:)` on the collection view.
+    internal func clearSelectedItems() {
+        guard let collectionView = collectionView,
+              let viewModel = viewModel else { return }
+
+        // Capture UI-selected index paths before we clear them
+        let indexPaths = Set(collectionView.indexPathsForSelectedItems ?? [])
+
+        // 1) Visually deselect items so UICollectionView updates its state
+        //    and the delegate's didDeselect is fired for visible cells
+        for indexPath in indexPaths {
+            collectionView.deselectItem(at: indexPath, animated: false)
+        }
+
+        // 2) Ensure model's selection state is cleared for any items that
+        //    remain selected only in the model (e.g., offscreen cells)
+        for (section, sectionInfo) in viewModel.sections.enumerated() {
+            for (item, cellInfo) in sectionInfo.items.enumerated()
+                where cellInfo.isSelected
+            {
+                let indexPath = IndexPath(item: item, section: section)
+                if let cell = collectionView.cellForItem(at: indexPath) {
+                    // Forward didDeselect to the binder and clear selection flag
+                    cellInfo.didDeselect(to: cell)
+                } else {
+                    // If the cell is not visible, just clear the selection state
+                    cellInfo.isSelected = false
+                }
+            }
+        }
+
+        // Write back the model for consistency
+        self.viewModel = viewModel
+    }
+
     // MARK: - Pagination
 
     /// Determines whether the next page should be loaded based on scroll position.
@@ -132,6 +252,15 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
 
         item.apply(to: cell)
 
+        if let actionClosure = item.actionClosure {
+            cell.actionClosure = { [weak cell] actionName, input in
+                guard let cell = cell else { return }
+                actionClosure(indexPath, cell, actionName, input)
+            }
+        } else {
+            cell.actionClosure = nil
+        }
+
         if let actionHandler = actionHandler,
            let aCell = cell as? (UIView & EventSendingProvider)
         {
@@ -147,7 +276,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         guard let section = viewModel?[indexPath.section]
         else { return collectionView.dequeueDefaultSupplementaryView(ofKind: kind, for: indexPath) }
 
-        let item: AnyBindingStore?
+        let item: SSCollectionViewModel.ReusableViewInfo?
         if kind == UICollectionView.elementKindSectionHeader {
             item = section.header
         } else if kind == UICollectionView.elementKindSectionFooter {
@@ -166,6 +295,15 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
 
         item.apply(to: view)
 
+        if let actionClosure = item.actionClosure {
+            view.actionClosure = { [weak view] actionName, input in
+                guard let view = view else { return }
+                actionClosure(indexPath.section, view, actionName, input)
+            }
+        } else {
+            view.actionClosure = nil
+        }
+
         if let actionHandler = actionHandler,
            let aView = view as? (UIView & EventSendingProvider)
         {
@@ -176,9 +314,105 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
     }
 }
 
-// MARK: - UICollectionViewDelegateFlowLayout
-
 extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
+    // MARK: - UICollectionViewDelegate
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               willDisplay cell: UICollectionViewCell,
+                               forItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item]
+        else { return }
+
+        item.willDisplay(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didEndDisplaying cell: UICollectionViewCell,
+                               forItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item]
+        else { return }
+
+        item.didEndDisplaying(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               willDisplaySupplementaryView view: UICollectionReusableView,
+                               forElementKind elementKind: String,
+                               at indexPath: IndexPath) {
+        guard let section = viewModel?[indexPath.section] else { return }
+
+        let item: SSCollectionViewModel.ReusableViewInfo?
+
+        switch elementKind {
+        case UICollectionView.elementKindSectionHeader:
+            item = section.header
+        case UICollectionView.elementKindSectionFooter:
+            item = section.footer
+        default:
+            item = nil
+        }
+
+        item?.willDisplay(to: view)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didEndDisplayingSupplementaryView view: UICollectionReusableView,
+                               forElementOfKind elementKind: String,
+                               at indexPath: IndexPath) {
+        guard let section = viewModel?[indexPath.section] else { return }
+
+        let item: SSCollectionViewModel.ReusableViewInfo?
+
+        switch elementKind {
+        case UICollectionView.elementKindSectionHeader:
+            item = section.header
+        case UICollectionView.elementKindSectionFooter:
+            item = section.footer
+        default:
+            item = nil
+        }
+
+        item?.didEndDisplaying(to: view)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didHighlightItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didHighlight(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didUnhighlightItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didUnhighlight(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didSelectItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didSelect(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didDeselectItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didDeselect(to: cell)
+    }
+
+    // MARK: - UICollectionViewDelegateFlowLayout
+
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                sizeForItemAt indexPath: IndexPath) -> CGSize {
