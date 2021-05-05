@@ -147,7 +147,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         guard let section = viewModel?[indexPath.section]
         else { return collectionView.dequeueDefaultSupplementaryView(ofKind: kind, for: indexPath) }
 
-        let item: AnyBindingStore?
+        let item: SSCollectionViewModel.ReusableViewInfo?
         if kind == UICollectionView.elementKindSectionHeader {
             item = section.header
         } else if kind == UICollectionView.elementKindSectionFooter {
@@ -176,9 +176,105 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
     }
 }
 
-// MARK: - UICollectionViewDelegateFlowLayout
-
 extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
+    // MARK: - UICollectionViewDelegate
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               willDisplay cell: UICollectionViewCell,
+                               forItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item]
+        else { return }
+
+        item.willDisplay(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didEndDisplaying cell: UICollectionViewCell,
+                               forItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item]
+        else { return }
+
+        item.didEndDisplaying(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               willDisplaySupplementaryView view: UICollectionReusableView,
+                               forElementKind elementKind: String,
+                               at indexPath: IndexPath) {
+        guard let section = viewModel?[indexPath.section] else { return }
+
+        let item: SSCollectionViewModel.ReusableViewInfo?
+
+        switch elementKind {
+        case UICollectionView.elementKindSectionHeader:
+            item = section.header
+        case UICollectionView.elementKindSectionFooter:
+            item = section.footer
+        default:
+            item = nil
+        }
+
+        item?.willDisplay(to: view)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didEndDisplayingSupplementaryView view: UICollectionReusableView,
+                               forElementOfKind elementKind: String,
+                               at indexPath: IndexPath) {
+        guard let section = viewModel?[indexPath.section] else { return }
+
+        let item: SSCollectionViewModel.ReusableViewInfo?
+
+        switch elementKind {
+        case UICollectionView.elementKindSectionHeader:
+            item = section.header
+        case UICollectionView.elementKindSectionFooter:
+            item = section.footer
+        default:
+            item = nil
+        }
+
+        item?.didEndDisplaying(to: view)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didHighlightItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didHighlight(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didUnhighlightItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didUnhighlight(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didSelectItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didSelect(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               didDeselectItemAt indexPath: IndexPath) {
+        guard let item = viewModel?[indexPath.section].items[indexPath.item],
+              let cell = collectionView.cellForItem(at: indexPath)
+        else { return }
+
+        item.didDeselect(to: cell)
+    }
+
+    // MARK: - UICollectionViewDelegateFlowLayout
+
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                sizeForItemAt indexPath: IndexPath) -> CGSize {
