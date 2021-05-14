@@ -14,6 +14,25 @@ import UIKit
 /// automatically handling data source and delegate methods. It provides an
 /// easy way to bind cell and supplementary view data with minimal boilerplate.
 public final class SSCollectionViewPresenter: NSObject {
+    // MARK: - PagingConfiguration
+
+    /// Configuration for custom paging behavior in the collection view.
+    public struct PagingConfiguration {
+        /// Enables automatic page transitions at regular intervals.
+        public var isAutoRolling: Bool
+
+        /// Time interval between automatic page transitions, in seconds.
+        public var autoRollingTimeInterval: TimeInterval
+
+        public init(
+            isAutoRolling: Bool = false,
+            autoRollingTimeInterval: TimeInterval = 3.0
+        ) {
+            self.isAutoRolling = isAutoRolling
+            self.autoRollingTimeInterval = autoRollingTimeInterval
+        }
+    }
+
     // MARK: - ViewModel
 
     /// The current view model backing the collection view.
@@ -47,6 +66,21 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Flag indicating whether a pagination request is in progress.
     internal var isLoadingNextPage: Bool = false
+
+    // MARK: - Paging Options
+
+    /// The paging configuration for the collection view.
+    internal var pagingConfig = PagingConfiguration()
+
+    internal var isAutoRolling: Bool {
+        get { pagingConfig.isAutoRolling }
+        set { pagingConfig.isAutoRolling = newValue }
+    }
+
+    internal var pagingTimeInterval: TimeInterval {
+        get { pagingConfig.autoRollingTimeInterval }
+        set { pagingConfig.autoRollingTimeInterval = newValue }
+    }
 
     // MARK: - Collection View Reference
 
@@ -210,6 +244,32 @@ public final class SSCollectionViewPresenter: NSObject {
 
         return (collectionView.currentOffset > collectionView.contentLength - collectionView.boundsLength * 3)
     }
+
+    // MARK: - Auto-Rolling
+
+    /// Cancels any pending auto-rolling operations.
+    internal func cancelAutoRolling() {
+        NSObject.cancelPreviousPerformRequests(
+            withTarget: self,
+            selector: #selector(self.runAutoRolling),
+            object: nil
+        )
+    }
+
+    /// Performs an automatic scroll to the next page and schedules the next one.
+    ///
+    /// Requires `isAutoRolling` to be enabled. This method calls itself
+    /// recursively at intervals defined by `pagingTimeInterval`.
+    @objc internal func runAutoRolling() {
+        cancelAutoRolling()
+        guard let collectionView = collectionView else { return }
+        collectionView.scrollPages(by: 1, animated: true)
+        perform(
+            #selector(self.runAutoRolling),
+            with: nil,
+            afterDelay: pagingTimeInterval
+        )
+    }
 }
 
 // MARK: - UICollectionViewDataSource
@@ -223,6 +283,12 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
             nextRequestBlock?(viewModel)
         }
 
+        DispatchQueue.main.async {
+            if self.isAutoRolling {
+                self.cancelAutoRolling()
+                self.perform(#selector(self.runAutoRolling), with: nil, afterDelay: 3)
+            }
+        }
         return viewModel.sections.count
     }
 
@@ -502,5 +568,19 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
         }
 
         return viewSize
+    }
+}
+
+extension SSCollectionViewPresenter: UIScrollViewDelegate {
+    public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        if isAutoRolling {
+            cancelAutoRolling()
+        }
+    }
+
+    public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        if isAutoRolling {
+            perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
+        }
     }
 }
