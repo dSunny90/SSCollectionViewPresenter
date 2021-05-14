@@ -70,6 +70,45 @@ extension UICollectionView {
         }
     }
 
+    /// Item size resolved from delegate (if any) or the flow layout itself.
+    /// Falls back to `bounds.size` when nothing is provided.
+    internal var flowLayoutItemSize: CGSize {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return bounds.size }
+
+        // Prefer a visible section if we have one; otherwise use section 0.
+        let section = indexPathsForVisibleItems.sorted().first?.section ?? 0
+        let firstIndexPath = IndexPath(item: 0, section: section)
+
+        // 1. Delegate override?
+        if let size = (delegate as? UICollectionViewDelegateFlowLayout)?.collectionView?(self, layout: flowLayout, sizeForItemAt: firstIndexPath) {
+            return size
+        }
+        // 2. Layout’s fixed itemSize?
+        if flowLayout.itemSize.width > 0, flowLayout.itemSize.height > 0 {
+            return flowLayout.itemSize
+        }
+        // 3. Estimated size (self-sizing) as a hint
+        if flowLayout.estimatedItemSize.width > 0, flowLayout.estimatedItemSize.height > 0 {
+            return flowLayout.estimatedItemSize
+        }
+        // 4. Sensible fallback
+        return bounds.size
+    }
+
+    /// Minimum line spacing resolved from delegate -> layout default.
+    internal var flowLayoutLineSpacing: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+
+        let section = indexPathsForVisibleItems.sorted().first?.section ?? 0
+
+        // 1. Delegate override?
+        if let spacing = (delegate as? UICollectionViewDelegateFlowLayout)?.collectionView?(self, layout: flowLayout, minimumLineSpacingForSectionAt: section) {
+            return spacing
+        }
+        // 2. Layout default
+        return flowLayout.minimumLineSpacing
+    }
+
     internal var boundsLength: CGFloat {
         guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
         return flowLayout.scrollDirection == .horizontal ? bounds.width : bounds.height
@@ -84,6 +123,26 @@ extension UICollectionView {
         guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
         return flowLayout.scrollDirection == .horizontal ? contentOffset.x : contentOffset.y
     }
+
+    private var contentInsetLeading: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentInset.left : contentInset.top
+    }
+
+    private var contentInsetTrailing: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentInset.right : contentInset.bottom
+    }
+
+    private var itemLength: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? flowLayoutItemSize.width : flowLayoutItemSize.height
+    }
+
+    private var pageLength: CGFloat { itemLength + flowLayoutLineSpacing }
+
+    private var minOffset: CGFloat { -contentInsetLeading }
+    private var maxOffset: CGFloat { contentLength - boundsLength + contentInsetTrailing }
 
     public func registerDefaultCell() {
         register(UICollectionViewCell.self, forCellWithReuseIdentifier: String(describing: UICollectionViewCell.self))
@@ -171,6 +230,33 @@ extension UICollectionView {
         )
     }
 
+    /// Advances contentOffset by one page in the given direction.
+    /// - Parameters:
+    ///   - steps: positive to go forward, negative to go backward.
+    ///   - animated: Whether the scroll should be animated.
+    internal func scrollPages(by steps: Int, animated: Bool) {
+        guard steps != 0,
+              !(currentOffset >= maxOffset && steps > 0),
+              !(currentOffset <= minOffset && steps < 0)
+        else { return }
+
+        let targetOffset: CGFloat = currentOffset + CGFloat(steps) * pageLength
+
+        if targetOffset > maxOffset {
+            setContentOffset(value: maxOffset, animated: animated)
+        } else if targetOffset < minOffset {
+            setContentOffset(value: minOffset, animated: animated)
+        } else {
+            if steps > 0 && targetOffset + pageLength / 2 > maxOffset {
+                setContentOffset(value: maxOffset, animated: animated)
+            } else if steps < 0 && targetOffset - pageLength / 2 < minOffset {
+                setContentOffset(value: minOffset, animated: animated)
+            } else {
+                setContentOffset(value: targetOffset, animated: animated)
+            }
+        }
+    }
+
     /// Checks whether a `.nib` file with the given name exists in the specified bundle.
     /// Falls back to `Bundle.main` when `bundle` is `nil`.
     ///
@@ -190,4 +276,19 @@ extension UICollectionView {
         }
         return false
      }
+
+    /// Sets the contentOffset to the given value along the current scroll axis.
+    ///
+    /// - Parameters:
+    ///   - value: The offset value to apply on the horizontal or vertical axis.
+    ///   - animated: Whether to animate the offset change.
+    private func setContentOffset(value: CGFloat, animated: Bool) {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return }
+        let currentOffset = contentOffset
+        if flowLayout.scrollDirection == .horizontal {
+            setContentOffset(CGPoint(x: value, y: currentOffset.y), animated: animated)
+        } else {
+            setContentOffset(CGPoint(x: currentOffset.x, y: value), animated: animated)
+        }
+    }
 }

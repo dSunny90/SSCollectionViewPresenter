@@ -162,4 +162,27 @@ extension SendingState where Base: UICollectionView {
     public func onNextRequest(_ block: @escaping (SSCollectionViewModel) -> Void) {
         base.presenter?.nextRequestBlock = block
     }
+
+    // MARK: - Paging Configuration
+
+    /// Configures custom paging using a `PagingConfiguration` struct.
+    public func setPagingEnabled(_ config: SSCollectionViewPresenter.PagingConfiguration) {
+        base.presenter?.pagingConfig = config
+    }
+
+    /// Cancels auto rolling and marks auto rolling as inactive.
+    ///
+    /// Sets `presenter`'s `isAutoRolling` to `false` before cancelling.
+    public func cancelAutoRolling() {
+        base.presenter?.isAutoRolling = false
+        base.presenter?.cancelAutoRolling()
+    }
+
+    /// Starts auto rolling and marks auto rolling as active.
+    ///
+    /// Sets `presenter`'s `isAutoRolling` to `true` before starting.
+    public func runAutoRolling() {
+        base.presenter?.isAutoRolling = true
+        base.presenter?.runAutoRolling()
+    }
 }
