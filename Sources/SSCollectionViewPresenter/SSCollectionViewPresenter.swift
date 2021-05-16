@@ -87,6 +87,14 @@ public final class SSCollectionViewPresenter: NSObject {
     /// The collection view being managed by this presenter.
     private weak var collectionView: UICollectionView?
 
+    // MARK: - Paging State
+
+    /// Indicates whether a programmatic scroll animation is in progress.
+    internal var isProgrammaticScrollAnimating: Bool = false
+
+    /// Accumulated page offset requested during an ongoing animation.
+    internal var pendingPageOffset: Int = 0
+
     // MARK: - Initialization
 
     public init(
@@ -269,6 +277,47 @@ public final class SSCollectionViewPresenter: NSObject {
             with: nil,
             afterDelay: pagingTimeInterval
         )
+    }
+
+    // MARK: - Paging Actions
+
+    /// Scrolls to the next page programmatically.
+    ///
+    /// Cancels any active auto-rolling. If an animation is already in progress,
+    /// the request is queued.
+    ///
+    /// - Parameter animated: Whether to animate the transition.
+    internal func moveToNextPage(animated: Bool) {
+        guard let collectionView = collectionView else { return }
+        cancelAutoRolling()
+        if isProgrammaticScrollAnimating {
+            pendingPageOffset += 1
+            return
+        }
+        isProgrammaticScrollAnimating = true
+        collectionView.scrollPages(by: 1, animated: animated)
+    }
+
+    /// Scrolls to the previous page programmatically.
+    ///
+    /// Cancels any active auto-rolling. If an animation is already in progress,
+    /// the request is queued.
+    ///
+    /// - Parameter animated: Whether to animate the transition.
+    internal func moveToPreviousPage(animated: Bool) {
+        guard let collectionView = collectionView else { return }
+        cancelAutoRolling()
+        if isProgrammaticScrollAnimating {
+            pendingPageOffset -= 1
+            return
+        }
+        isProgrammaticScrollAnimating = true
+        collectionView.scrollPages(by: -1, animated: animated)
+    }
+
+    /// Marks the programmatic scroll animation as complete.
+    internal func endProgrammaticScrollAnimating() {
+        isProgrammaticScrollAnimating = false
     }
 }
 
@@ -579,6 +628,26 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
     }
 
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        if isAutoRolling {
+            perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
+        }
+    }
+
+    public func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        guard let collectionView = scrollView as? UICollectionView else { return }
+
+        endProgrammaticScrollAnimating()
+
+        // If there are queued page moves, perform them now as a single offset
+        let offset = pendingPageOffset
+        if offset != 0 {
+            pendingPageOffset = 0
+            isProgrammaticScrollAnimating = true
+            collectionView.scrollPages(by: offset, animated: true)
+            return
+        }
+
+        // No more queued moves; schedule auto-rolling and notify page appearance
         if isAutoRolling {
             perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
         }

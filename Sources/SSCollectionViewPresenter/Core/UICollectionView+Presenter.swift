@@ -238,7 +238,10 @@ extension UICollectionView {
         guard steps != 0,
               !(currentOffset >= maxOffset && steps > 0),
               !(currentOffset <= minOffset && steps < 0)
-        else { return }
+        else {
+            presenter?.endProgrammaticScrollAnimating()
+            return
+        }
 
         let targetOffset: CGFloat = currentOffset + CGFloat(steps) * pageLength
 
