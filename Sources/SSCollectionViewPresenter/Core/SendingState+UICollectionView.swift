@@ -185,4 +185,22 @@ extension SendingState where Base: UICollectionView {
         base.presenter?.isAutoRolling = true
         base.presenter?.runAutoRolling()
     }
+
+    // MARK: - Paging Actions
+
+    /// Scrolls to the next page.
+    ///
+    /// - Parameter animated: If `true`, animates the transition.
+    ///                       Default is `true`.
+    public func moveToNextPage(animated: Bool = true) {
+        base.presenter?.moveToNextPage(animated: animated)
+    }
+
+    /// Scrolls to the previous page.
+    ///
+    /// - Parameter animated: If `true`, animates the transition.
+    ///                       Default is `true`.
+    public func moveToPreviousPage(animated: Bool = true) {
+        base.presenter?.moveToPreviousPage(animated: animated)
+    }
 }
