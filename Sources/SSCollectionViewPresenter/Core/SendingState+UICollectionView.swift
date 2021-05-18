@@ -35,6 +35,13 @@ extension SendingState where Base: UICollectionView {
         )
     }
 
+    /// Forwards scroll events using a delegate proxy.
+    ///
+    /// - Parameter proxy: A `UIScrollViewDelegate`
+    public func setScrollViewDelegateProxy(_ proxy: UIScrollViewDelegate) {
+        base.presenter?.scrollViewDelegateProxy = proxy
+    }
+
     // MARK: - View Model
 
     /// Assigns the view model used by the presenter (sections & items source).
