@@ -72,6 +72,11 @@ public final class SSCollectionViewPresenter: NSObject {
     /// Flag indicating whether a pagination request is in progress.
     internal var isLoadingNextPage: Bool = false
 
+    // MARK: - Scroll Delegate
+
+    /// Proxy for forwarding scroll view delegate methods.
+    internal weak var scrollViewDelegateProxy: UIScrollViewDelegate?
+
     // MARK: - Paging Options
 
     /// The paging configuration for the collection view.
@@ -631,19 +636,45 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
 }
 
 extension SSCollectionViewPresenter: UIScrollViewDelegate {
+    public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewDidScroll?(scrollView)
+    }
+
+    public func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewDidZoom?(scrollView)
+    }
+
     public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewWillBeginDragging?(scrollView)
+
         if isAutoRolling {
             cancelAutoRolling()
         }
     }
 
+    public func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        scrollViewDelegateProxy?.scrollViewWillEndDragging?(scrollView, withVelocity: velocity, targetContentOffset: targetContentOffset)
+    }
+
+    public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        scrollViewDelegateProxy?.scrollViewDidEndDragging?(scrollView, willDecelerate: decelerate)
+    }
+
+    public func scrollViewWillBeginDecelerating(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewWillBeginDecelerating?(scrollView)
+    }
+
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewDidEndDecelerating?(scrollView)
+
         if isAutoRolling {
             perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
         }
     }
 
     public func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewDidEndScrollingAnimation?(scrollView)
+
         guard let collectionView = scrollView as? UICollectionView else { return }
 
         endProgrammaticScrollAnimating()
@@ -661,5 +692,29 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
         if isAutoRolling {
             perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
         }
+    }
+
+    public func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return scrollViewDelegateProxy?.viewForZooming?(in: scrollView)
+    }
+
+    public func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        scrollViewDelegateProxy?.scrollViewWillBeginZooming?(scrollView, with: view)
+    }
+
+    public func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+        scrollViewDelegateProxy?.scrollViewDidEndZooming?(scrollView, with: view, atScale: scale)
+    }
+
+    public func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+        return scrollViewDelegateProxy?.scrollViewShouldScrollToTop?(scrollView) ?? true
+    }
+
+    public func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewDidScrollToTop?(scrollView)
+    }
+
+    public func scrollViewDidChangeAdjustedContentInset(_ scrollView: UIScrollView) {
+        scrollViewDelegateProxy?.scrollViewDidChangeAdjustedContentInset?(scrollView)
     }
 }
