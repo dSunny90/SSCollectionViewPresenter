@@ -18,6 +18,9 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Configuration for custom paging behavior in the collection view.
     public struct PagingConfiguration {
+        /// When `true`, wraps around when reaching either end.
+        public var isLooping: Bool
+
         /// Enables automatic page transitions at regular intervals.
         public var isAutoRolling: Bool
 
@@ -25,9 +28,11 @@ public final class SSCollectionViewPresenter: NSObject {
         public var autoRollingTimeInterval: TimeInterval
 
         public init(
+            isLooping: Bool = false,
             isAutoRolling: Bool = false,
             autoRollingTimeInterval: TimeInterval = 3.0
         ) {
+            self.isLooping = isLooping
             self.isAutoRolling = isAutoRolling
             self.autoRollingTimeInterval = autoRollingTimeInterval
         }
@@ -71,6 +76,11 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// The paging configuration for the collection view.
     internal var pagingConfig = PagingConfiguration()
+
+    internal var isLooping: Bool {
+        get { pagingConfig.isLooping }
+        set { pagingConfig.isLooping = newValue }
+    }
 
     internal var isAutoRolling: Bool {
         get { pagingConfig.isAutoRolling }

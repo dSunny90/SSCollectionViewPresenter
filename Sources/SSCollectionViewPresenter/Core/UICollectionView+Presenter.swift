@@ -124,6 +124,8 @@ extension UICollectionView {
         return flowLayout.scrollDirection == .horizontal ? contentOffset.x : contentOffset.y
     }
 
+    private var isLooping: Bool { presenter?.isLooping ?? false }
+
     private var contentInsetLeading: CGFloat {
         guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
         return flowLayout.scrollDirection == .horizontal ? contentInset.left : contentInset.top
@@ -235,11 +237,27 @@ extension UICollectionView {
     ///   - steps: positive to go forward, negative to go backward.
     ///   - animated: Whether the scroll should be animated.
     internal func scrollPages(by steps: Int, animated: Bool) {
-        guard steps != 0,
-              !(currentOffset >= maxOffset && steps > 0),
-              !(currentOffset <= minOffset && steps < 0)
+        guard steps != 0
         else {
             presenter?.endProgrammaticScrollAnimating()
+            return
+        }
+
+        guard !(currentOffset >= maxOffset && steps > 0) else {
+            if isLooping {
+                setContentOffset(value: minOffset, animated: animated)
+            } else {
+                presenter?.endProgrammaticScrollAnimating()
+            }
+            return
+        }
+
+        guard !(currentOffset <= minOffset && steps < 0) else {
+            if isLooping {
+                setContentOffset(value: maxOffset, animated: animated)
+            } else {
+                presenter?.endProgrammaticScrollAnimating()
+            }
             return
         }
 
