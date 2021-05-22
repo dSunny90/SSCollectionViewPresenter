@@ -18,6 +18,9 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Configuration for custom paging behavior in the collection view.
     public struct PagingConfiguration {
+        /// Enables custom paging (replaces `UIScrollView.isPagingEnabled`).
+        public var isEnabled: Bool
+
         /// When `true`, wraps around when reaching either end.
         public var isLooping: Bool
 
@@ -28,10 +31,12 @@ public final class SSCollectionViewPresenter: NSObject {
         public var autoRollingTimeInterval: TimeInterval
 
         public init(
+            isEnabled: Bool = true,
             isLooping: Bool = false,
             isAutoRolling: Bool = false,
             autoRollingTimeInterval: TimeInterval = 3.0
         ) {
+            self.isEnabled = isEnabled
             self.isLooping = isLooping
             self.isAutoRolling = isAutoRolling
             self.autoRollingTimeInterval = autoRollingTimeInterval
@@ -80,7 +85,12 @@ public final class SSCollectionViewPresenter: NSObject {
     // MARK: - Paging Options
 
     /// The paging configuration for the collection view.
-    internal var pagingConfig = PagingConfiguration()
+    internal var pagingConfig = PagingConfiguration(isEnabled: false)
+
+    internal var isCustomPagingEnabled: Bool {
+        get { pagingConfig.isEnabled }
+        set { pagingConfig.isEnabled = newValue }
+    }
 
     internal var isLooping: Bool {
         get { pagingConfig.isLooping }
@@ -109,6 +119,11 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Accumulated page offset requested during an ongoing animation.
     internal var pendingPageOffset: Int = 0
+
+    /// Returns `true` if any paging mode is active.
+    internal var isPagingEnabled: Bool {
+        isCustomPagingEnabled || isAutoRolling
+    }
 
     // MARK: - Initialization
 
@@ -222,11 +237,23 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
     public func numberOfSections(in collectionView: UICollectionView) -> Int {
         guard let viewModel = viewModel else { return 0 }
 
+        guard !(isCustomPagingEnabled && viewModel.sections.count > 1)
+        else {
+            assertionFailure("⚠️ [SSCollectionViewPresenter] pagingConfig.isEnabled ignored: requires single section (count=\(viewModel.sections.count)).")
+            self.isCustomPagingEnabled = false
+            return viewModel.sections.count
+        }
+
         if viewModel.sections.isEmpty, viewModel.hasNext {
             isLoadingNextPage = true
             nextRequestBlock?(viewModel)
         }
-
+        /// Called as part of the layout cycle to determine the number of sections.
+        /// This is one of the earliest entry points in a layout pass.
+        ///
+        /// If you need to adjust layout-related states (e.g., content offset),
+        /// defer them using `DispatchQueue.main.async` to avoid interfering
+        /// with UIKit’s internal layout process.
         DispatchQueue.main.async {
             if self.isAutoRolling {
                 self.cancelAutoRolling()
@@ -516,10 +543,20 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
 
     public func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
         scrollViewDelegateProxy?.scrollViewWillEndDragging?(scrollView, withVelocity: velocity, targetContentOffset: targetContentOffset)
+
+        guard let collectionView = scrollView as? UICollectionView else { return }
+
+        if isPagingEnabled {
+            collectionView.remapTargetContentOffset(withVelocity: velocity, targetContentOffset: targetContentOffset)
+        }
     }
 
     public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         scrollViewDelegateProxy?.scrollViewDidEndDragging?(scrollView, willDecelerate: decelerate)
+
+        if !decelerate {
+            scrollViewDidEndDecelerating(scrollView)
+        }
     }
 
     public func scrollViewWillBeginDecelerating(_ scrollView: UIScrollView) {
