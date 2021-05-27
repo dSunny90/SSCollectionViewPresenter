@@ -24,6 +24,9 @@ public final class SSCollectionViewPresenter: NSObject {
         /// When `true`, wraps around when reaching either end.
         public var isLooping: Bool
 
+        /// Enables infinite scrolling by duplicating content.
+        public var isInfinitePage: Bool
+
         /// Enables automatic page transitions at regular intervals.
         public var isAutoRolling: Bool
 
@@ -33,15 +36,22 @@ public final class SSCollectionViewPresenter: NSObject {
         public init(
             isEnabled: Bool = true,
             isLooping: Bool = false,
+            isInfinitePage: Bool = false,
             isAutoRolling: Bool = false,
             autoRollingTimeInterval: TimeInterval = 3.0
         ) {
             self.isEnabled = isEnabled
             self.isLooping = isLooping
+            self.isInfinitePage = isInfinitePage
             self.isAutoRolling = isAutoRolling
             self.autoRollingTimeInterval = autoRollingTimeInterval
         }
     }
+
+    // MARK: - Constants
+
+    /// Number of times items are duplicated for infinite scrolling.
+    internal let duplicatedItemCount: Int = 3
 
     // MARK: - ViewModel
 
@@ -97,6 +107,11 @@ public final class SSCollectionViewPresenter: NSObject {
         set { pagingConfig.isLooping = newValue }
     }
 
+    internal var isInfinitePage: Bool {
+        get { pagingConfig.isInfinitePage }
+        set { pagingConfig.isInfinitePage = newValue }
+    }
+
     internal var isAutoRolling: Bool {
         get { pagingConfig.isAutoRolling }
         set { pagingConfig.isAutoRolling = newValue }
@@ -122,7 +137,7 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Returns `true` if any paging mode is active.
     internal var isPagingEnabled: Bool {
-        isCustomPagingEnabled || isAutoRolling
+        isCustomPagingEnabled || isInfinitePage || isAutoRolling
     }
 
     // MARK: - Initialization
@@ -255,6 +270,9 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         /// defer them using `DispatchQueue.main.async` to avoid interfering
         /// with UIKit’s internal layout process.
         DispatchQueue.main.async {
+            if self.isInfinitePage {
+                collectionView.remapContentOffsetIfNeeded()
+            }
             if self.isAutoRolling {
                 self.cancelAutoRolling()
                 self.perform(#selector(self.runAutoRolling), with: nil, afterDelay: 3)
@@ -266,7 +284,14 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
     public func collectionView(_ collectionView: UICollectionView,
                                numberOfItemsInSection section: Int) -> Int {
         guard let items = viewModel?[section].items else { return 0 }
-        return items.count
+
+        let itemCount: Int
+        if isInfinitePage, items.count > 1 {
+            itemCount = items.count * duplicatedItemCount
+        } else {
+            itemCount = items.count
+        }
+        return itemCount
     }
 
     public func collectionView(_ collectionView: UICollectionView,
@@ -281,7 +306,8 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
             }
         }
 
-        let item = viewModel[indexPath.section].items[indexPath.item]
+        let items = viewModel[indexPath.section].items
+        let item = viewModel[indexPath.section].items[indexPath.item % items.count]
         let cell = collectionView.dequeueReusableCell(
             withReuseIdentifier: String(describing: item.binderType),
             for: indexPath
@@ -339,19 +365,35 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                willDisplay cell: UICollectionViewCell,
                                forItemAt indexPath: IndexPath) {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item]
-        else { return }
+        guard let items = viewModel?[indexPath.section].items else { return }
+        let item = items[indexPath.item % items.count]
 
-        item.willDisplay(to: cell)
+        if isInfinitePage {
+            let lowerBoundIndex = duplicatedItemCount / 2
+            let upperBoundIndex = duplicatedItemCount / 2 + 1
+            if indexPath.item >= items.count && indexPath.item * lowerBoundIndex < items.count * upperBoundIndex {
+                item.willDisplay(to: cell)
+            }
+        } else {
+            item.willDisplay(to: cell)
+        }
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didEndDisplaying cell: UICollectionViewCell,
                                forItemAt indexPath: IndexPath) {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item]
-        else { return }
+        guard let items = viewModel?[indexPath.section].items else { return }
+        let item = items[indexPath.item % items.count]
 
-        item.didEndDisplaying(to: cell)
+        if isInfinitePage {
+            let lowerBoundIndex = duplicatedItemCount / 2
+            let upperBoundIndex = duplicatedItemCount / 2 + 1
+            if indexPath.item >= items.count && indexPath.item * lowerBoundIndex < items.count * upperBoundIndex {
+                item.didEndDisplaying(to: cell)
+            }
+        } else {
+            item.didEndDisplaying(to: cell)
+        }
     }
 
     public func collectionView(_ collectionView: UICollectionView,
@@ -396,37 +438,49 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
 
     public func collectionView(_ collectionView: UICollectionView,
                                didHighlightItemAt indexPath: IndexPath) {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item],
-              let cell = collectionView.cellForItem(at: indexPath)
+        guard let items = viewModel?[indexPath.section].items else { return }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
         else { return }
 
+        let item = items[indexPath.item % items.count]
         item.didHighlight(to: cell)
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didUnhighlightItemAt indexPath: IndexPath) {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item],
-              let cell = collectionView.cellForItem(at: indexPath)
+        guard let items = viewModel?[indexPath.section].items else { return }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
         else { return }
 
+        let item = items[indexPath.item % items.count]
         item.didUnhighlight(to: cell)
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didSelectItemAt indexPath: IndexPath) {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item],
-              let cell = collectionView.cellForItem(at: indexPath)
+        guard let items = viewModel?[indexPath.section].items else { return }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
         else { return }
 
+        let item = items[indexPath.item % items.count]
         item.didSelect(to: cell)
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didDeselectItemAt indexPath: IndexPath) {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item],
-              let cell = collectionView.cellForItem(at: indexPath)
+        guard let items = viewModel?[indexPath.section].items else { return }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
         else { return }
 
+        let item = items[indexPath.item % items.count]
         item.didDeselect(to: cell)
     }
 
@@ -435,15 +489,19 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                sizeForItemAt indexPath: IndexPath) -> CGSize {
-        guard let item = viewModel?[indexPath.section].items[indexPath.item],
-              let itemSize = item.size(constrainedTo: collectionView.bounds.size)
-        else {
+        func defaultItemSize(layout collectionViewLayout: UICollectionViewLayout) -> CGSize {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.itemSize
             } else {
                 return .zero
             }
         }
+
+        guard let items = viewModel?[indexPath.section].items
+        else { return defaultItemSize(layout: collectionViewLayout) }
+
+        guard let itemSize = items[indexPath.item % items.count].size(constrainedTo: collectionView.bounds.size)
+        else { return defaultItemSize(layout: collectionViewLayout) }
 
         return itemSize
     }
@@ -566,8 +624,15 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         scrollViewDelegateProxy?.scrollViewDidEndDecelerating?(scrollView)
 
+        guard let collectionView = scrollView as? UICollectionView else { return }
+
         if isAutoRolling {
             perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
+        }
+
+        // After scrolling fully stops, remap offset for infinite scroll once
+        if isInfinitePage {
+            collectionView.remapContentOffsetIfNeeded()
         }
     }
 
@@ -585,6 +650,11 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
             isProgrammaticScrollAnimating = true
             collectionView.scrollPages(by: offset, animated: true)
             return
+        }
+
+        // After programmatic animation ends, remap offset for infinite scroll once
+        if isInfinitePage {
+            collectionView.remapContentOffsetIfNeeded()
         }
 
         // No more queued moves; schedule auto-rolling and notify page appearance
