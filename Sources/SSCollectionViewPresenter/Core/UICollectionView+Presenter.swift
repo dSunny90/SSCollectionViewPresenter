@@ -267,6 +267,37 @@ extension UICollectionView {
         )
     }
 
+    /// Re-centers contentOffset near duplicated edges to maintain infinite scroll.
+    internal func remapContentOffsetIfNeeded() {
+        guard let segments = presenter?.duplicatedItemCount else { return }
+
+        let lowerBound: CGFloat = {
+            let margins = flowLayoutLineSpacing * CGFloat(segments - 1)
+            let segmentLength = (sectionLength - margins) / CGFloat(segments)
+            return segmentLength + flowLayoutLineSpacing
+        }()
+        let upperBound = lowerBound * CGFloat(segments - 1)
+
+        guard !(currentOffset <= minOffset) else {
+            setContentOffset(value: currentOffset + lowerBound, animated: false)
+            return
+        }
+
+        let checkOffset = contentInsetLeading - sectionInsetLeading + currentOffset
+
+        if checkOffset < lowerBound {
+            setContentOffset(
+                value: currentOffset + lowerBound,
+                animated: false
+            )
+        } else if checkOffset >= upperBound {
+            setContentOffset(
+                value: currentOffset - lowerBound,
+                animated: false
+            )
+        }
+    }
+
     /// Computes and snaps the target content offset for paging based on swipe
     /// velocity and the current flow layout, and writes the result into
     /// targetContentOffset.
