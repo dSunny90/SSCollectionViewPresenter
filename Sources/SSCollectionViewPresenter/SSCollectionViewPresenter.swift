@@ -21,6 +21,9 @@ public final class SSCollectionViewPresenter: NSObject {
         /// Enables custom paging (replaces `UIScrollView.isPagingEnabled`).
         public var isEnabled: Bool
 
+        /// When `true`, snaps pages to the viewport center after scrolling.
+        public var isAlignCenter: Bool
+
         /// When `true`, wraps around when reaching either end.
         public var isLooping: Bool
 
@@ -35,12 +38,14 @@ public final class SSCollectionViewPresenter: NSObject {
 
         public init(
             isEnabled: Bool = true,
+            isAlignCenter: Bool = false,
             isLooping: Bool = false,
             isInfinitePage: Bool = false,
             isAutoRolling: Bool = false,
             autoRollingTimeInterval: TimeInterval = 3.0
         ) {
             self.isEnabled = isEnabled
+            self.isAlignCenter = isAlignCenter
             self.isLooping = isLooping
             self.isInfinitePage = isInfinitePage
             self.isAutoRolling = isAutoRolling
@@ -100,6 +105,11 @@ public final class SSCollectionViewPresenter: NSObject {
     internal var isCustomPagingEnabled: Bool {
         get { pagingConfig.isEnabled }
         set { pagingConfig.isEnabled = newValue }
+    }
+
+    internal var isAlignCenter: Bool {
+        get { pagingConfig.isAlignCenter }
+        set { pagingConfig.isAlignCenter = newValue }
     }
 
     internal var isLooping: Bool {
@@ -270,6 +280,9 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         /// defer them using `DispatchQueue.main.async` to avoid interfering
         /// with UIKit’s internal layout process.
         DispatchQueue.main.async {
+            if self.isAlignCenter {
+                collectionView.setInitialOffsetIfNeeded(animated: false)
+            }
             if self.isInfinitePage {
                 collectionView.remapContentOffsetIfNeeded()
             }

@@ -123,6 +123,17 @@ extension UICollectionView {
         return flowLayout.sectionInset
     }
 
+    /// Returns fractional page index from current offset.
+    internal var currentPage: CGFloat {
+        guard pageLength > 0 else { return 0 }
+
+        var adjustedOffset = currentOffset - sectionInsetLeading
+        if isAlignCenter {
+            adjustedOffset += (boundsLength - itemLength) / 2
+        }
+        return adjustedOffset / pageLength
+    }
+
     /// Returns the first fractional page index.
     internal var firstPage: CGFloat { return 0 }
 
@@ -148,6 +159,7 @@ extension UICollectionView {
         return flowLayout.scrollDirection == .horizontal ? contentOffset.x : contentOffset.y
     }
 
+    private var isAlignCenter: Bool { presenter?.isAlignCenter ?? false }
     private var isLooping: Bool { presenter?.isLooping ?? false }
 
     private var contentInsetLeading: CGFloat {
@@ -178,8 +190,16 @@ extension UICollectionView {
     private var pageLength: CGFloat { itemLength + flowLayoutLineSpacing }
     private var sectionLength: CGFloat { contentLength - (sectionInsetLeading + sectionInsetTrailing) }
 
+    private var baseOffset: CGFloat { contentInsetLeading - sectionInsetLeading }
     private var minOffset: CGFloat { -contentInsetLeading }
     private var maxOffset: CGFloat { contentLength - boundsLength + contentInsetTrailing }
+
+    private var isOverMinOffset: Bool { isAlignCenter ? (currentOffset <= centerInitialOffset) : (currentOffset <= minOffset) }
+    private var isOverMaxOffset: Bool { isAlignCenter ? (currentOffset >= centerFinalOffset) : (currentOffset >= maxOffset) }
+
+    private var centerInitialOffset: CGFloat { sectionInsetLeading - (boundsLength - itemLength) / 2 }
+    private var centerCurrentOffset: CGFloat { sectionInsetLeading + currentPage.rounded() * (itemLength + flowLayoutLineSpacing) - (boundsLength - itemLength) / 2 }
+    private var centerFinalOffset: CGFloat { sectionInsetLeading + lastPage * (itemLength + flowLayoutLineSpacing) - (boundsLength - itemLength) / 2 }
 
     public func registerDefaultCell() {
         register(UICollectionViewCell.self, forCellWithReuseIdentifier: String(describing: UICollectionViewCell.self))
@@ -267,6 +287,34 @@ extension UICollectionView {
         )
     }
 
+    /// Sets the initial content offset for the first item.
+    ///
+    /// - Behavior:
+    ///   - If `isAlignCenter` is true, centers the first item.
+    ///   - Otherwise, scrolls to the leading edge (respects content inset).
+    /// - Parameter animated: Whether to animate the offset change.
+    internal func setInitialOffsetIfNeeded(animated: Bool) {
+        if isAlignCenter {
+            setContentOffset(value: max(minOffset, centerInitialOffset), animated: animated)
+        } else {
+            setContentOffset(value: minOffset, animated: animated)
+        }
+    }
+
+    /// Sets the final content offset for the last item.
+    ///
+    /// - Behavior:
+    ///   - If `isAlignCenter` is true, centers the last item.
+    ///   - Otherwise, aligns the last page with the trailing edge.
+    /// - Parameter animated: Whether to animate the offset change.
+    internal func setFinalOffsetIfNeeded(animated: Bool) {
+        if isAlignCenter {
+            setContentOffset(value: min(maxOffset, centerFinalOffset), animated: animated)
+        } else {
+            setContentOffset(value: maxOffset, animated: animated)
+        }
+    }
+
     /// Re-centers contentOffset near duplicated edges to maintain infinite scroll.
     internal func remapContentOffsetIfNeeded() {
         guard let segments = presenter?.duplicatedItemCount else { return }
@@ -278,12 +326,19 @@ extension UICollectionView {
         }()
         let upperBound = lowerBound * CGFloat(segments - 1)
 
-        guard !(currentOffset <= minOffset) else {
-            setContentOffset(value: currentOffset + lowerBound, animated: false)
+        guard !isOverMinOffset else {
+            let firstOffset: CGFloat = isAlignCenter ? centerInitialOffset : currentOffset
+            setContentOffset(
+                value: firstOffset + lowerBound,
+                animated: false
+            )
             return
         }
 
-        let checkOffset = contentInsetLeading - sectionInsetLeading + currentOffset
+        var checkOffset = baseOffset + currentOffset
+        if isAlignCenter {
+            checkOffset += max(0, (boundsLength - itemLength - (contentInsetLeading + contentInsetTrailing)) / 2)
+        }
 
         if checkOffset < lowerBound {
             setContentOffset(
@@ -302,6 +357,12 @@ extension UICollectionView {
     /// velocity and the current flow layout, and writes the result into
     /// targetContentOffset.
     ///
+    /// - Note: When a user drags beyond the minimum or maximum scrollable range,
+    ///         the scroll view will bounce back to the nearest valid offset.
+    ///         If your goal is simply to keep items centered, you can often
+    ///         achieve it by giving the section insets generous values
+    ///         instead of adding extra paging logic.
+    ///
     /// - Parameters:
     ///   - velocity: Scrolling velocity in points/second. Used to bias toward
     ///               next/previous page (ceil/floor) on a fast flick.
@@ -311,7 +372,10 @@ extension UICollectionView {
     internal func remapTargetContentOffset(withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
         guard let scrollDirection = (collectionViewLayout as? UICollectionViewFlowLayout)?.scrollDirection else { return }
 
-        let checkOffset: CGFloat = contentInsetLeading - sectionInsetLeading
+        var checkOffset: CGFloat = baseOffset
+        if isAlignCenter {
+            checkOffset += (boundsLength - itemLength) / 2
+        }
 
         let velocityValue = scrollDirection == .horizontal ? velocity.x : velocity.y
         let targetOffset = currentOffset + velocityValue * 60.0
@@ -337,7 +401,11 @@ extension UICollectionView {
         } else if targetIndex <= firstPage {
             offset = minOffset
         } else {
-            offset = minOffset + pageLength * targetIndex
+            if isAlignCenter {
+                offset = centerInitialOffset + pageLength * targetIndex
+            } else {
+                offset = minOffset + pageLength * targetIndex
+            }
         }
 
         if scrollDirection == .horizontal {
@@ -358,35 +426,40 @@ extension UICollectionView {
             return
         }
 
-        guard !(currentOffset >= maxOffset && steps > 0) else {
+        guard !(isOverMaxOffset && steps > 0) else {
             if isLooping {
-                setContentOffset(value: minOffset, animated: animated)
+                setInitialOffsetIfNeeded(animated: animated)
             } else {
                 presenter?.endProgrammaticScrollAnimating()
             }
             return
         }
 
-        guard !(currentOffset <= minOffset && steps < 0) else {
+        guard !(isOverMinOffset && steps < 0) else {
             if isLooping {
-                setContentOffset(value: maxOffset, animated: animated)
+                setFinalOffsetIfNeeded(animated: animated)
             } else {
                 presenter?.endProgrammaticScrollAnimating()
             }
             return
         }
 
-        let targetOffset: CGFloat = currentOffset + CGFloat(steps) * pageLength
+        let targetOffset: CGFloat
+        if isAlignCenter, currentPage.truncatingRemainder(dividingBy: 1) != 0 {
+            targetOffset = centerCurrentOffset + CGFloat(steps) * pageLength
+        } else {
+            targetOffset = currentOffset + CGFloat(steps) * pageLength
+        }
 
         if targetOffset > maxOffset {
-            setContentOffset(value: maxOffset, animated: animated)
+            setFinalOffsetIfNeeded(animated: animated)
         } else if targetOffset < minOffset {
-            setContentOffset(value: minOffset, animated: animated)
+            setInitialOffsetIfNeeded(animated: animated)
         } else {
             if steps > 0 && targetOffset + pageLength / 2 > maxOffset {
-                setContentOffset(value: maxOffset, animated: animated)
+                setFinalOffsetIfNeeded(animated: animated)
             } else if steps < 0 && targetOffset - pageLength / 2 < minOffset {
-                setContentOffset(value: minOffset, animated: animated)
+                setInitialOffsetIfNeeded(animated: animated)
             } else {
                 setContentOffset(value: targetOffset, animated: animated)
             }
