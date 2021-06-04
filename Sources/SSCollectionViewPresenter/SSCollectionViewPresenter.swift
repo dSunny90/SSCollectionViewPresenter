@@ -132,12 +132,29 @@ public final class SSCollectionViewPresenter: NSObject {
         set { pagingConfig.autoRollingTimeInterval = newValue }
     }
 
+    // MARK: - Page Event Callbacks
+
+    /// Called just before a page becomes visible.
+    internal var pageWillAppearBlock: ((UICollectionView, Int) -> Void)?
+
+    /// Called right after a page becomes visible
+    internal var pageDidAppearBlock: ((UICollectionView, Int) -> Void)?
+
+    /// Called just before a page disappears from view.
+    internal var pageWillDisappearBlock: ((UICollectionView, Int) -> Void)?
+
+    /// Called immediately after a page disappears from view.
+    internal var pageDidDisappearBlock: ((UICollectionView, Int) -> Void)?
+
     // MARK: - Collection View Reference
 
     /// The collection view being managed by this presenter.
     private weak var collectionView: UICollectionView?
 
     // MARK: - Paging State
+
+    /// The zero-based index of the current page.
+    internal var currentPageIndex: Int = 0
 
     /// Indicates whether a programmatic scroll animation is in progress.
     internal var isProgrammaticScrollAnimating: Bool = false
@@ -170,6 +187,31 @@ public final class SSCollectionViewPresenter: NSObject {
         collectionView.registerDefaultReusableViews(
             ofKind: UICollectionView.elementKindSectionFooter
         )
+    }
+
+    // MARK: - ViewModel Replacement
+
+    /// Replaces the view model and fires page lifecycle callbacks.
+    ///
+    /// Unlike a plain `viewModel` assignment (which only registers types),
+    /// this method additionally notifies `pageWillAppear` / `pageDidAppear`
+    /// when paging is active.
+    ///
+    /// Use this for **full replacements** (`setViewModel`, `buildViewModel`,
+    /// `extendViewModel`). For incremental mutations (append, insert, delete,
+    /// update), assign to `viewModel` directly.
+    internal func updateViewModel(_ viewModel: SSCollectionViewModel) {
+        guard let collectionView = collectionView else {
+            self.viewModel = viewModel
+            return
+        }
+        if isPagingEnabled {
+            pageWillAppearBlock?(collectionView, currentPageIndex)
+        }
+        self.viewModel = viewModel
+        if isPagingEnabled {
+            pageDidAppearBlock?(collectionView, currentPageIndex)
+        }
     }
 
     // MARK: - Section/Item Control
@@ -275,7 +317,7 @@ public final class SSCollectionViewPresenter: NSObject {
         //    remain selected only in the model (e.g., offscreen cells)
         for (section, sectionInfo) in viewModel.sections.enumerated() {
             for (item, cellInfo) in sectionInfo.items.enumerated()
-                where cellInfo.isSelected
+            where cellInfo.isSelected
             {
                 let indexPath = IndexPath(item: item, section: section)
                 if let cell = collectionView.cellForItem(at: indexPath) {
@@ -736,6 +778,19 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
 extension SSCollectionViewPresenter: UIScrollViewDelegate {
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         scrollViewDelegateProxy?.scrollViewDidScroll?(scrollView)
+
+        guard let collectionView = scrollView as? UICollectionView else { return }
+
+        if isPagingEnabled {
+            guard let section = viewModel?.sections.first, section.items.count > 0 else { return }
+            let pageIndex = Int(round(collectionView.currentPage))
+            let adjustedIndex = pageIndex % section.items.count
+            if currentPageIndex != adjustedIndex {
+                pageDidDisappearBlock?(collectionView, currentPageIndex)
+                currentPageIndex = adjustedIndex
+                pageWillAppearBlock?(collectionView, currentPageIndex)
+            }
+        }
     }
 
     public func scrollViewDidZoom(_ scrollView: UIScrollView) {
@@ -745,8 +800,14 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
     public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         scrollViewDelegateProxy?.scrollViewWillBeginDragging?(scrollView)
 
+        guard let collectionView = scrollView as? UICollectionView else { return }
+
         if isAutoRolling {
             cancelAutoRolling()
+        }
+
+        if isPagingEnabled {
+            pageWillDisappearBlock?(collectionView, currentPageIndex)
         }
     }
 
@@ -785,6 +846,10 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
         if isInfinitePage {
             collectionView.remapContentOffsetIfNeeded()
         }
+
+        if isPagingEnabled {
+            pageDidAppearBlock?(collectionView, currentPageIndex)
+        }
     }
 
     public func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
@@ -811,6 +876,10 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
         // No more queued moves; schedule auto-rolling and notify page appearance
         if isAutoRolling {
             perform(#selector(self.runAutoRolling), with: nil, afterDelay: pagingTimeInterval)
+        }
+
+        if isPagingEnabled {
+            pageDidAppearBlock?(collectionView, currentPageIndex)
         }
     }
 
