@@ -48,7 +48,7 @@ extension SendingState where Base: UICollectionView {
     ///
     /// - Parameter viewModel: The model containing sections and items.
     public func setViewModel(with viewModel: SSCollectionViewModel) {
-        base.presenter?.viewModel = viewModel
+        base.presenter?.updateViewModel(viewModel)
     }
 
     /// Gets the current view model used by the presenter.
@@ -62,7 +62,7 @@ extension SendingState where Base: UICollectionView {
     public func resetViewModel() {
         var model = base.presenter?.viewModel ?? SSCollectionViewModel()
         model.removeAllPages()
-        base.presenter?.viewModel = model
+        base.presenter?.updateViewModel(model)
     }
 
     // MARK: - Section/Item Control
@@ -137,7 +137,7 @@ extension SendingState where Base: UICollectionView {
         var model = base.presenter?.viewModel ?? SSCollectionViewModel()
         model.hasNext = hasNext
         model.setPage(page, sections: sections)
-        base.presenter?.viewModel = model
+        base.presenter?.updateViewModel(model)
         return model
     }
 
@@ -151,7 +151,7 @@ extension SendingState where Base: UICollectionView {
     public func removePage(_ page: Int) -> SSCollectionViewModel? {
         guard var model = base.presenter?.viewModel else { return nil }
         model.removePage(page)
-        base.presenter?.viewModel = model
+        base.presenter?.updateViewModel(model)
         return model
     }
 
@@ -205,5 +205,39 @@ extension SendingState where Base: UICollectionView {
     ///                       Default is `true`.
     public func moveToPreviousPage(animated: Bool = true) {
         base.presenter?.moveToPreviousPage(animated: animated)
+    }
+
+    // MARK: - Paging Callbacks
+
+    /// Sets a closure to be called just before a page becomes visible.
+    ///
+    /// - Parameter block: A closure that receives the collection view and the
+    ///                    page index that is about to appear.
+    public func onPageWillAppear(_ block: @escaping (UICollectionView, Int) -> Void) {
+        base.presenter?.pageWillAppearBlock = block
+    }
+
+    /// Sets a closure to be called immediately after a page becomes visible.
+    ///
+    /// - Parameter block: A closure that receives the collection view and the
+    ///                    page index that appeared.
+    public func onPageDidAppear(_ block: @escaping (UICollectionView, Int) -> Void) {
+        base.presenter?.pageDidAppearBlock = block
+    }
+
+    /// Sets a closure to be called just before a page disappears from view.
+    ///
+    /// - Parameter block: A closure that receives the collection view and the
+    ///                    page index that is about to disappear.
+    public func onPageWillDisappear(_ block: @escaping (UICollectionView, Int) -> Void) {
+        base.presenter?.pageWillDisappearBlock = block
+    }
+
+    /// Sets a closure to be called immediately after a page disappears from view.
+    ///
+    /// - Parameter block: A closure that receives the collection view and the
+    ///                    page index that disappeared.
+    public func onPageDidDisappear(_ block: @escaping (UICollectionView, Int) -> Void) {
+        base.presenter?.pageDidDisappearBlock = block
     }
 }
