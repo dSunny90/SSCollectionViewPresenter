@@ -65,6 +65,12 @@ public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCol
         self.init(sections: [])
     }
 
+    /// Get a section at the specified index.
+    public func sectionInfo(at index: Int) -> SectionInfo? {
+        guard sections.indices.contains(index) else { return nil }
+        return sections[index]
+    }
+
     // MARK: - Page Management
 
     /// Stores sections for a given page and rebuilds the merged sections array.
@@ -193,5 +199,27 @@ public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCol
     public subscript(index: Int) -> SectionInfo {
         get { sections[index] }
         set { sections[index] = newValue }
+    }
+
+    // MARK: - Operators Overloading
+
+    public static func + (lhs: SSCollectionViewModel, rhs: SSCollectionViewModel) -> SSCollectionViewModel {
+        SSCollectionViewModel(sections: lhs.sections + rhs.sections)
+    }
+
+    public static func += (lhs: inout SSCollectionViewModel, rhs: SSCollectionViewModel) {
+        lhs.sections += rhs.sections
+    }
+
+    public static func + (lhs: SSCollectionViewModel, rhs: SectionInfo) -> SSCollectionViewModel {
+        var new = lhs
+        new.append(rhs)
+        return new
+    }
+
+    public static func + (lhs: SSCollectionViewModel, rhs: [SectionInfo]) -> SSCollectionViewModel {
+        var new = lhs
+        new.append(contentsOf: rhs)
+        return new
     }
 }
