@@ -12,6 +12,8 @@ extension SSCollectionViewModel {
     /// A view model structure used by `SSCollectionViewPresenter` to configure
     /// and render each section of the collection view.
     public struct SectionInfo: RandomAccessCollection, RangeReplaceableCollection, Hashable {
+        public typealias ReusableViewInfo = SSCollectionViewModel.ReusableViewInfo
+
         private let uuid: UUID = UUID()
         // MARK: - Core Contents
 
@@ -120,5 +122,98 @@ extension SSCollectionViewModel {
             new.append(contentsOf: rhs)
             return new
         }
+    }
+}
+
+public extension SSCollectionViewModel.SectionInfo {
+    // MARK: - Cell/Header/Footer Operations
+
+    /// Appends a cell info to the end of the section.
+    ///
+    /// - Parameters:
+    ///   - model: The data model to bind to the cell.
+    ///   - cellType: The cell view type conforming to `SSCollectionViewCellProtocol`.
+    mutating func appendCellInfo<T, V>(_ model: T, cellType: V.Type)
+        where V: SSCollectionViewCellProtocol, V.Input == T
+    {
+        append(Element(BindingStore<T, V>(state: model)))
+    }
+
+    /// Inserts a cell info at the specified index.
+    ///
+    /// - Parameters:
+    ///   - model: The data model to bind to the cell.
+    ///   - cellType: The cell view type conforming to `SSCollectionViewCellProtocol`.
+    ///   - index: Target index within `startIndex...endIndex`.
+    ///
+    /// - Note: No-op if `index` is outside `startIndex...endIndex`.
+    mutating func insertCellInfo<T, V>(_ model: T, cellType: V.Type, at index: Int)
+        where V: SSCollectionViewCellProtocol, V.Input == T
+    {
+        guard (startIndex...endIndex).contains(index) else { return }
+        items.insert(Element(BindingStore<T, V>(state: model)), at: index)
+
+    }
+
+    /// Updates an existing cell info at the specified index.
+    ///
+    /// - Parameters:
+    ///   - model: The data model to bind to the cell.
+    ///   - cellType: The cell view type conforming to `SSCollectionViewCellProtocol`.
+    ///   - index: The index of the cell to update.
+    mutating func updateCellInfo<T, V>(
+        _ model: T,
+        cellType: V.Type,
+        at index: Int
+    ) where V: SSCollectionViewCellProtocol, V.Input == T {
+        guard items.indices.contains(index) else { return }
+        items[index] = Element(BindingStore<T, V>(state: model))
+    }
+
+    /// Upserts a cell info at the specified index.
+    ///
+    /// - Behavior:
+    ///   - If `index` is within current indices, updates the cell.
+    ///   - If `index` equals `endIndex`, appends the cell.
+    ///   - Otherwise, performs no operation.
+    ///
+    /// - Parameters:
+    ///   - model: The data model to bind to the cell.
+    ///   - cellType: The cell view type conforming to `SSCollectionViewCellProtocol`.
+    ///   - index: Target index for update or insertion.
+    mutating func upsertCellInfo<T, V>(
+        _ model: T,
+        cellType: V.Type,
+        at index: Int
+    ) where V: SSCollectionViewCellProtocol, V.Input == T {
+        if items.indices.contains(index) {
+            updateCellInfo(model, cellType: cellType, at: index)
+        } else if index == endIndex {
+            appendCellInfo(model, cellType: V.self)
+        } else {
+            return
+        }
+    }
+
+    /// Sets the section's header reusable view information.
+    ///
+    /// - Parameters:
+    ///   - model: The data model to provide to the header view.
+    ///   - viewType: The header view type conforming to `SSCollectionReusableViewProtocol`.
+    mutating func setHeaderInfo<T, V>(_ model: T, viewType: V.Type)
+        where V: SSCollectionReusableViewProtocol, V.Input == T
+    {
+        header = ReusableViewInfo(BindingStore<T, V>(state: model))
+    }
+
+    /// Sets the section's footer reusable view information.
+    ///
+    /// - Parameters:
+    ///   - model: The data model to provide to the footer view.
+    ///   - viewType: The footer view type conforming to `SSCollectionReusableViewProtocol`.
+    mutating func setFooterInfo<T, V>(_ model: T, viewType: V.Type)
+        where V: SSCollectionReusableViewProtocol, V.Input == T
+    {
+        footer = ReusableViewInfo(BindingStore<T, V>(state: model))
     }
 }
