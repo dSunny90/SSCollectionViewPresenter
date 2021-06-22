@@ -420,4 +420,346 @@ extension SendingState where Base: UICollectionView {
     public func sectionIndex(identifier: String) -> Int? {
         base.presenter?.viewModel?.sections.firstIndex(where: { $0.identifier == identifier })
     }
+
+    // MARK: - Item Operations
+
+    /// Appends an item to the section at the specified index.
+    ///
+    /// No-op if the section index is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - item: The item to append.
+    ///   - section: The index of the target section.
+    public func appendItem(_ item: SSCollectionViewModel.CellInfo, toSection section: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.indices.contains(section) else { return }
+        viewModel[section].append(item)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Appends multiple items to the section at the specified index.
+    ///
+    /// No-op if the section index is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - items: The items to append.
+    ///   - section: The index of the target section.
+    public func appendItems(contentsOf items: [SSCollectionViewModel.CellInfo], toSection section: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.indices.contains(section) else { return }
+        viewModel[section].append(contentsOf: items)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Appends an item to the first section matching the given identifier.
+    ///
+    /// No-op if no section with the identifier exists.
+    ///
+    /// - Parameters:
+    ///   - item: The item to append.
+    ///   - identifier: The identifier of the target section.
+    public func appendItem(_ item: SSCollectionViewModel.CellInfo, sectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
+        else { return }
+        viewModel.sections[sectionIndex].append(item)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Appends multiple items to the first section matching the given identifier.
+    ///
+    /// No-op if no section with the identifier exists.
+    ///
+    /// - Parameters:
+    ///   - items: The items to append.
+    ///   - identifier: The identifier of the target section.
+    public func appendItems(contentsOf items: [SSCollectionViewModel.CellInfo], sectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
+        else { return }
+        viewModel.sections[sectionIndex].append(contentsOf: items)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Appends an item to the last section in the view model.
+    ///
+    /// No-op if the view model is empty.
+    ///
+    /// - Parameter item: The item to append.
+    public func appendItemToLastSection(_ item: SSCollectionViewModel.CellInfo) {
+        guard var viewModel = base.presenter?.viewModel,
+              !viewModel.isEmpty else { return }
+        let lastIndex = viewModel.count - 1
+        viewModel[lastIndex].append(item)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Appends multiple items to the last section in the view model.
+    ///
+    /// No-op if the view model is empty.
+    ///
+    /// - Parameter items: The items to append.
+    public func appendItemsToLastSection(contentsOf items: [SSCollectionViewModel.CellInfo]) {
+        guard var viewModel = base.presenter?.viewModel,
+              !viewModel.isEmpty else { return }
+        let lastIndex = viewModel.count - 1
+        viewModel[lastIndex].append(contentsOf: items)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Inserts an item at the specified index path.
+    ///
+    /// No-op if the section or item index is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - item: The item to insert.
+    ///   - indexPath: The index path where the item will be inserted.
+    public func insertItem(_ item: SSCollectionViewModel.CellInfo, at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item <= viewModel[indexPath.section].count else { return }
+        viewModel[indexPath.section].insert(item, at: indexPath.item)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Inserts multiple items starting at the specified index path.
+    ///
+    /// No-op if the section or item index is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - items: The items to insert.
+    ///   - indexPath: The starting index path for insertion.
+    public func insertItems(_ items: [SSCollectionViewModel.CellInfo], at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item <= viewModel[indexPath.section].count else { return }
+        viewModel[indexPath.section].insert(contentsOf: items, at: indexPath.item)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Inserts an item at the specified row in the first section matching
+    /// the given identifier.
+    ///
+    /// No-op if no section with the identifier exists or the row is out
+    /// of bounds (`0...itemCount`).
+    ///
+    /// - Parameters:
+    ///   - item: The item to insert.
+    ///   - row: The row index for insertion.
+    ///   - identifier: The identifier of the target section.
+    public func insertItem(
+        _ item: SSCollectionViewModel.CellInfo,
+        atRow row: Int,
+        sectionIdentifier identifier: String
+    ) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
+              (0...viewModel[sectionIndex].count).contains(row)
+        else { return }
+        viewModel[sectionIndex].insert(item, at: row)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Inserts multiple items starting at the specified row in the first
+    /// section matching the given identifier.
+    ///
+    /// No-op if no section with the identifier exists or the row is out
+    /// of bounds (`0...itemCount`).
+    ///
+    /// - Parameters:
+    ///   - items: The items to insert.
+    ///   - row: The starting row index for insertion.
+    ///   - identifier: The identifier of the target section.
+    public func insertItems(
+        _ items: [SSCollectionViewModel.CellInfo],
+        atRow row: Int,
+        sectionIdentifier identifier: String
+    ) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
+              (0...viewModel[sectionIndex].count).contains(row)
+        else { return }
+        viewModel[sectionIndex].insert(contentsOf: items, at: row)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes the item at the specified index path.
+    ///
+    /// No-op if the index path is out of bounds.
+    ///
+    /// - Parameter indexPath: The index path of the item to remove.
+    public func removeItem(at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item < viewModel[indexPath.section].count else { return }
+        viewModel[indexPath.section].remove(at: indexPath.item)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes items at the specified index paths.
+    ///
+    /// Out-of-bounds index paths are silently ignored.
+    ///
+    /// - Parameter indexPaths: The index paths of the items to remove.
+    public func removeItems(at indexPaths: [IndexPath]) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+        let sorted = indexPaths.sorted {
+            $0.section > $1.section ||
+            ($0.section == $1.section && $0.item > $1.item)
+        }
+        for indexPath in sorted {
+            guard indexPath.section < viewModel.count,
+                  indexPath.item < viewModel[indexPath.section].count else { continue }
+            viewModel[indexPath.section].remove(at: indexPath.item)
+        }
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes all items in the section at the specified index.
+    ///
+    /// No-op if the section index is out of bounds.
+    /// The section itself remains; only its items are cleared.
+    ///
+    /// - Parameter section: The index of the section to clear.
+    public func removeAllItems(inSection section: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.indices.contains(section) else { return }
+        viewModel[section].removeAll()
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes the item at the specified row in the first section matching
+    /// the given identifier.
+    ///
+    /// No-op if no section with the identifier exists or the row is out
+    /// of bounds.
+    ///
+    /// - Parameters:
+    ///   - row: The row index of the item to remove.
+    ///   - identifier: The identifier of the target section.
+    public func removeItem(atRow row: Int, sectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
+              row < viewModel[sectionIndex].count
+        else { return }
+        viewModel[sectionIndex].remove(at: row)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes all items in the first section matching the given identifier.
+    ///
+    /// No-op if no section with the identifier exists.
+    /// The section itself remains; only its items are cleared.
+    ///
+    /// - Parameter identifier: The identifier of the section to clear.
+    public func removeAllItems(sectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
+        else { return }
+        viewModel[sectionIndex].removeAll()
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Replaces the item at the specified index path.
+    ///
+    /// No-op if the index path is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - item: The replacement item.
+    ///   - indexPath: The index path of the item to replace.
+    public func replaceItem(_ item: SSCollectionViewModel.CellInfo, at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.row < viewModel[indexPath.section].count else { return }
+        viewModel[indexPath.section][indexPath.row] = item
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Replaces the item at the specified row in the first section matching
+    /// the given identifier.
+    ///
+    /// No-op if no section with the identifier exists or the row is out
+    /// of bounds.
+    ///
+    /// - Parameters:
+    ///   - item: The replacement item.
+    ///   - row: The row index of the item to replace.
+    ///   - identifier: The identifier of the target section.
+    public func replaceItem(
+        _ item: SSCollectionViewModel.CellInfo,
+        atRow row: Int,
+        sectionIdentifier identifier: String
+    ) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
+              row < viewModel[sectionIndex].count
+        else { return }
+        viewModel[sectionIndex][row] = item
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Moves an item from one index path to another.
+    ///
+    /// No-op if the source index path is out of bounds. The destination
+    /// row is clamped to the valid range after removal.
+    ///
+    /// - Parameters:
+    ///   - source: The current index path of the item.
+    ///   - destination: The destination index path for the item.
+    public func moveItem(from source: IndexPath, to destination: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              source.section < viewModel.count,
+              source.item < viewModel[source.section].count,
+              destination.section < viewModel.count
+        else { return }
+        let item = viewModel[source.section].remove(at: source.item)
+        let clampedRow = min(destination.item, viewModel[destination.section].count)
+        viewModel[destination.section].insert(item, at: clampedRow)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Returns the number of items in the section at the specified index.
+    ///
+    /// - Parameter section: The index of the section.
+    /// - Returns: The item count, or `0` if the section index is out of bounds.
+    public func itemCount(inSection section: Int) -> Int {
+        base.presenter?.viewModel?.sectionInfo(at: section)?.count ?? 0
+    }
+
+    /// Returns the number of items in the first section matching
+    /// the given identifier.
+    ///
+    /// - Parameter identifier: The identifier of the section.
+    /// - Returns: The item count, or `0` if no matching section exists.
+    public func itemCount(sectionIdentifier identifier: String) -> Int {
+        base.presenter?.viewModel?.sections
+            .first(where: { $0.identifier == identifier })?.count ?? 0
+    }
+
+    /// Returns the item at the specified index path, or `nil` if out of bounds.
+    ///
+    /// - Parameter indexPath: The index path of the item.
+    /// - Returns: The `CellInfo` at the index path, or `nil`.
+    public func item(at indexPath: IndexPath) -> SSCollectionViewModel.CellInfo? {
+        guard let viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item < viewModel[indexPath.section].count
+        else { return nil }
+        return viewModel[indexPath.section][indexPath.item]
+    }
+
+    /// Returns the item at the specified row in the first section matching
+    /// the given identifier, or `nil` if not found.
+    ///
+    /// - Parameters:
+    ///   - row: The row index of the item.
+    ///   - identifier: The identifier of the target section.
+    /// - Returns: The `CellInfo`, or `nil`.
+    public func item(atRow row: Int, sectionIdentifier identifier: String) -> SSCollectionViewModel.CellInfo? {
+        guard let viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
+              row < viewModel[sectionIndex].count
+        else { return nil }
+        return viewModel[sectionIndex][row]
+    }
 }
