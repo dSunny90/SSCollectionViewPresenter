@@ -53,6 +53,18 @@ extension SSCollectionViewModel {
             self.init(items: [])
         }
 
+        /// Get a cell info at the specified index.
+        public func cellInfo(at index: Int) -> CellInfo? {
+            guard items.indices.contains(index) else { return nil }
+            return items[index]
+        }
+
+        /// Get a header info at the specified index.
+        public func headerInfo() -> ReusableViewInfo? { header }
+
+        /// Get a header info at the specified index.
+        public func footerInfo() -> ReusableViewInfo? { footer }
+
         // MARK: - RandomAccessCollection Methods
 
         public func index(after i: Int) -> Int {
@@ -86,6 +98,27 @@ extension SSCollectionViewModel {
 
         public static func == (lhs: Self, rhs: Self) -> Bool {
             return lhs.uuid == rhs.uuid
+        }
+
+        // MARK: - Operators Overloading
+        public static func + (lhs: SectionInfo, rhs: SectionInfo) -> SectionInfo {
+            SectionInfo(items: lhs.items + rhs.items)
+        }
+
+        public static func += (lhs: inout SectionInfo, rhs: SectionInfo) {
+            lhs.items += rhs.items
+        }
+
+        public static func + (lhs: SectionInfo, rhs: CellInfo) -> SectionInfo {
+            var new = lhs
+            new.append(rhs)
+            return new
+        }
+
+        public static func + (lhs: SectionInfo, rhs: [CellInfo]) -> SectionInfo {
+            var new = lhs
+            new.append(contentsOf: rhs)
+            return new
         }
     }
 }

@@ -240,4 +240,180 @@ extension SendingState where Base: UICollectionView {
     public func onPageDidDisappear(_ block: @escaping (UICollectionView, Int) -> Void) {
         base.presenter?.pageDidDisappearBlock = block
     }
+
+    // MARK: - Section Operations
+
+    /// Appends a section to the end of the view model.
+    ///
+    /// No-op if the view model is empty.
+    ///
+    /// - Parameter section: The section to append.
+    public func appendSection(_ section: SSCollectionViewModel.SectionInfo) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+        viewModel.append(section)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Appends multiple sections to the end of the view model.
+    ///
+    /// No-op if the view model is empty.
+    ///
+    /// - Parameter sections: The sections to append.
+    public func appendSections(contentsOf sections: [SSCollectionViewModel.SectionInfo]) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+        viewModel.append(contentsOf: sections)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Inserts a section at the specified index.
+    ///
+    /// No-op if the index is out of bounds (`0...sectionCount`).
+    ///
+    /// - Parameters:
+    ///   - section: The section to insert.
+    ///   - index: The position at which to insert the section.
+    public func insertSection(_ section: SSCollectionViewModel.SectionInfo, at index: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              (0...viewModel.count).contains(index) else { return }
+        viewModel.insert(section, at: index)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Inserts multiple sections starting at the specified index.
+    ///
+    /// No-op if the index is out of bounds (`0...sectionCount`).
+    ///
+    /// - Parameters:
+    ///   - sections: The sections to insert.
+    ///   - index: The starting position for the insertion.
+    public func insertSections(_ sections: [SSCollectionViewModel.SectionInfo], at index: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              (0...viewModel.count).contains(index) else { return }
+        viewModel.insert(contentsOf: sections, at: index)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes the section at the specified index.
+    ///
+    /// No-op if the index is out of bounds.
+    ///
+    /// - Parameter index: The index of the section to remove.
+    public func removeSection(at index: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.indices.contains(index) else { return }
+        viewModel.remove(at: index)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes sections at the specified indices.
+    ///
+    /// Out-of-bounds indices are silently ignored.
+    ///
+    /// - Parameter indices: An `IndexSet` of section indices to remove.
+    public func removeSections(at indices: IndexSet) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+        for index in indices.sorted(by: >) {
+            guard viewModel.indices.contains(index) else { continue }
+            viewModel.remove(at: index)
+        }
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes the first section matching the given identifier.
+    ///
+    /// No-op if no section with the identifier exists.
+    ///
+    /// - Parameter identifier: The identifier of the section to remove.
+    public func removeSection(identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let index = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
+        else { return }
+        viewModel.remove(at: index)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Removes all sections from the view model.
+    public func removeAllSections() {
+        guard var viewModel = base.presenter?.viewModel else { return }
+        viewModel.removeAll()
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Replaces the section at the specified index with a new section.
+    ///
+    /// No-op if the index is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - section: The replacement section.
+    ///   - index: The index of the section to replace.
+    public func replaceSection(_ section: SSCollectionViewModel.SectionInfo, at index: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.indices.contains(index) else { return }
+        viewModel[index] = section
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Replaces the first section matching the given identifier.
+    ///
+    /// No-op if no section with the identifier exists.
+    ///
+    /// - Parameters:
+    ///   - section: The replacement section.
+    ///   - identifier: The identifier of the section to replace.
+    public func replaceSection(_ section: SSCollectionViewModel.SectionInfo, identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let index = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
+        else { return }
+        viewModel[index] = section
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Moves a section from one index to another.
+    ///
+    /// No-op if either index is out of bounds.
+    ///
+    /// - Parameters:
+    ///   - fromIndex: The current index of the section.
+    ///   - toIndex: The destination index for the section.
+    public func moveSection(from fromIndex: Int, to toIndex: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.indices.contains(fromIndex),
+              (0...viewModel.count - 1).contains(toIndex),
+              fromIndex != toIndex
+        else { return }
+        let section = viewModel.remove(at: fromIndex)
+        viewModel.insert(section, at: toIndex)
+        base.presenter?.updateViewModel(viewModel)
+    }
+
+    /// Returns the number of sections in the view model.
+    public var sectionCount: Int {
+        base.presenter?.viewModel?.count ?? 0
+    }
+
+    /// Returns the section at the specified index, or `nil` if out of bounds.
+    ///
+    /// - Parameter index: The index of the section.
+    /// - Returns: The `SectionInfo` at the index, or `nil`.
+    public func section(at index: Int) -> SSCollectionViewModel.SectionInfo? {
+        base.presenter?.viewModel?.sectionInfo(at: index)
+    }
+
+    /// Returns the first section matching the given identifier, or `nil`
+    /// if not found.
+    ///
+    /// - Parameter identifier: The identifier to search for.
+    /// - Returns: The matching `SectionInfo`, or `nil`.
+    public func section(identifier: String) -> SSCollectionViewModel.SectionInfo? {
+        base.presenter?.viewModel?.sections.first(where: { $0.identifier == identifier })
+    }
+
+    /// Returns the index of the first section matching the given identifier,
+    /// or `nil` if not found.
+    ///
+    /// - Parameter identifier: The identifier to search for.
+    /// - Returns: The section index, or `nil`.
+    public func sectionIndex(identifier: String) -> Int? {
+        base.presenter?.viewModel?.sections.firstIndex(where: { $0.identifier == identifier })
+    }
 }
