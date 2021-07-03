@@ -360,7 +360,7 @@ extension UICollectionView {
     /// - Note: When a user drags beyond the minimum or maximum scrollable range,
     ///         the scroll view will bounce back to the nearest valid offset.
     ///         If your goal is simply to keep items centered, you can often
-    ///         achieve it by giving the section insets generous values
+    ///         achieve it by giving the section inset generous values
     ///         instead of adding extra paging logic.
     ///
     /// - Parameters:
