@@ -101,6 +101,17 @@ extension SendingState where Base: UICollectionView {
         base.presenter?.clearSelectedItems()
     }
 
+    /// Toggles the collapsed state of the specified section.
+    ///
+    /// - Parameters:
+    ///   - section: The index of the section to toggle.
+    ///   - completion: A closure called after the animation completes.
+    ///                 Receives `true` if the section is now expanded,
+    ///                 `false` if collapsed.
+    public func toggleSection(_ section: Int, completion:  @escaping ((Bool) -> Void)) {
+        base.presenter?.toggleSection(section, completion: completion)
+    }
+
     /// Builds a new `SSCollectionViewModel` using a builder pattern and assigns
     /// it to the presenter.
     ///

@@ -47,13 +47,14 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
 
     public func collectionView(_ collectionView: UICollectionView,
                                numberOfItemsInSection section: Int) -> Int {
-        guard let items = viewModel?[section].items else { return 0 }
+        guard let sectionInfo = viewModel?[section],
+              !sectionInfo.isCollapsed else { return 0 }
 
         let itemCount: Int
-        if isInfinitePage, items.count > 1 {
-            itemCount = items.count * duplicatedItemCount
+        if isInfinitePage, sectionInfo.items.count > 1 {
+            itemCount = sectionInfo.items.count * duplicatedItemCount
         } else {
-            itemCount = items.count
+            itemCount = sectionInfo.items.count
         }
         return itemCount
     }

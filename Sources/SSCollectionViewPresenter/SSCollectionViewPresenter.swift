@@ -295,6 +295,41 @@ public final class SSCollectionViewPresenter: NSObject {
         self.viewModel = viewModel
     }
 
+    /// Toggles the collapsed state of the specified section and animates
+    /// the changes.
+    ///
+    /// Updates `isCollapsed` on the section model before calling
+    /// `performBatchUpdates` to keep the data source consistent
+    /// during animation.
+    ///
+    /// - Parameters:
+    ///   - section: The index of the section to toggle.
+    ///   - completion: A closure called after the animation completes.
+    ///                 Receives `true` if the section is now expanded,
+    ///                 `false` if collapsed.
+    internal func toggleSection(_ section: Int, completion: @escaping ((Bool) -> Void)) {
+        guard let collectionView = collectionView,
+              var model = viewModel else { return }
+
+        let wasCollapsed = model[section].isCollapsed
+        let indexPaths = (0..<model[section].count).map {
+            IndexPath(item: $0, section: section)
+        }
+
+        model[section].isCollapsed = !wasCollapsed
+        self.viewModel = model
+
+        collectionView.performBatchUpdates {
+            if wasCollapsed {
+                collectionView.insertItems(at: indexPaths)
+            } else {
+                collectionView.deleteItems(at: indexPaths)
+            }
+        } completion: { _ in
+            completion(!wasCollapsed)
+        }
+    }
+
     // MARK: - Pagination
 
     /// Determines whether the next page should be loaded based on scroll position.
