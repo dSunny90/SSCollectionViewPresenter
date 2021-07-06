@@ -23,6 +23,13 @@ extension SSCollectionViewModel {
         internal var header: ReusableViewInfo?
         internal var footer: ReusableViewInfo?
 
+        /// A Boolean value indicating whether the section is collapsed.
+        ///
+        /// When `true`, the section's items are hidden from the collection view.
+        /// Set this value before calling `performBatchUpdates` to ensure the
+        /// data source reflects the updated state during the animation.
+        public var isCollapsed: Bool = false
+
         // MARK: - RandomAccessCollection
 
         public typealias Index = Int
