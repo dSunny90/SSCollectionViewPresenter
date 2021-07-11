@@ -14,6 +14,10 @@ import UIKit
 /// automatically handling data source and delegate methods. It provides an
 /// easy way to bind cell and supplementary view data with minimal boilerplate.
 public final class SSCollectionViewPresenter: NSObject {
+    typealias SectionInfo = SSCollectionViewModel.SectionInfo
+    typealias CellInfo = SSCollectionViewModel.CellInfo
+    typealias ReusableViewInfo = SSCollectionViewModel.ReusableViewInfo
+
     // MARK: - Constants
 
     /// Number of times items are duplicated for infinite scrolling.
@@ -61,10 +65,10 @@ public final class SSCollectionViewPresenter: NSObject {
     // MARK: - Prefetching
 
     /// Closure called when items should be prefetched.
-    internal var prefetchBlock: (([SSCollectionViewModel.CellInfo]) -> Void)?
+    internal var prefetchBlock: (([CellInfo]) -> Void)?
 
     /// Closure called when prefetching should be cancelled.
-    internal var cancelPrefetchBlock: (([SSCollectionViewModel.CellInfo]) -> Void)?
+    internal var cancelPrefetchBlock: (([CellInfo]) -> Void)?
 
     // MARK: - Paging Options
 

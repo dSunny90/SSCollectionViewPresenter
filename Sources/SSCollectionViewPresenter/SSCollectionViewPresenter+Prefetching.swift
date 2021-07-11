@@ -17,7 +17,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSourcePrefetching {
     ) {
         guard let viewModel = viewModel else { return }
 
-        let items: [SSCollectionViewModel.CellInfo] = indexPaths.compactMap {
+        let items: [CellInfo] = indexPaths.compactMap {
             guard $0.section < viewModel.count,
                   $0.item < viewModel[$0.section].count else { return nil }
             return viewModel[$0.section][$0.item]
@@ -31,7 +31,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSourcePrefetching {
     ) {
         guard let viewModel = viewModel else { return }
 
-        let items: [SSCollectionViewModel.CellInfo] = indexPaths.compactMap {
+        let items: [CellInfo] = indexPaths.compactMap {
             guard $0.section < viewModel.count,
                   $0.item < viewModel[$0.section].count else { return nil }
             return viewModel[$0.section][$0.item]
