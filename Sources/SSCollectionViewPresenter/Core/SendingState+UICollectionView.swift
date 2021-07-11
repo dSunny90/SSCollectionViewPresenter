@@ -229,6 +229,28 @@ extension SendingState where Base: UICollectionView {
         return model
     }
 
+    // MARK: - Prefetching
+
+    /// Sets a closure to be called when items should be prefetched.
+    ///
+    /// Automatically sets the collection view's `prefetchDataSource`.
+    ///
+    /// - Parameter block: A closure that receives the `CellInfo` for items
+    ///                    to prefetch.
+    @available(iOS 10.0, *)
+    public func onPrefetch(_ block: @escaping ([SSCollectionViewModel.CellInfo]) -> Void) {
+        base.presenter?.prefetchBlock = block
+    }
+
+    /// Sets a closure to be called when prefetching should be cancelled.
+    ///
+    /// - Parameter block: A closure that receives the `CellInfo` for items
+    ///                    whose prefetching should be cancelled.
+    @available(iOS 10.0, *)
+    public func onCancelPrefetch(_ block: @escaping ([SSCollectionViewModel.CellInfo]) -> Void) {
+        base.presenter?.cancelPrefetchBlock = block
+    }
+
     // MARK: - Page-Based Loading
 
     /// Loads a page of data into the view model's page map and
