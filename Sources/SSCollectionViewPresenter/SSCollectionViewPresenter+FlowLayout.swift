@@ -52,7 +52,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                                at indexPath: IndexPath) {
         guard let section = viewModel?[indexPath.section] else { return }
 
-        let item: SSCollectionViewModel.ReusableViewInfo?
+        let item: ReusableViewInfo?
 
         switch elementKind {
         case UICollectionView.elementKindSectionHeader:
@@ -72,7 +72,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                                at indexPath: IndexPath) {
         guard let section = viewModel?[indexPath.section] else { return }
 
-        let item: SSCollectionViewModel.ReusableViewInfo?
+        let item: ReusableViewInfo?
 
         switch elementKind {
         case UICollectionView.elementKindSectionHeader:

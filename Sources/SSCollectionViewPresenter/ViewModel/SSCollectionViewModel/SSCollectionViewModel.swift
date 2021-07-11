@@ -26,7 +26,7 @@ public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCol
     internal var sections: [SectionInfo] = []
 
     /// Returns the currently selected items.
-    public var selectedItems: [SSCollectionViewModel.CellInfo] {
+    public var selectedItems: [CellInfo] {
         sections.flatMap { $0.items.filter { $0.isSelected } }
     }
 
