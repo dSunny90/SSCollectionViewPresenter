@@ -58,6 +58,14 @@ public final class SSCollectionViewPresenter: NSObject {
     /// Proxy for forwarding scroll view delegate methods.
     internal weak var scrollViewDelegateProxy: UIScrollViewDelegate?
 
+    // MARK: - Prefetching
+
+    /// Closure called when items should be prefetched.
+    internal var prefetchBlock: (([SSCollectionViewModel.CellInfo]) -> Void)?
+
+    /// Closure called when prefetching should be cancelled.
+    internal var cancelPrefetchBlock: (([SSCollectionViewModel.CellInfo]) -> Void)?
+
     // MARK: - Paging Options
 
     /// The paging configuration for the collection view.
@@ -141,6 +149,7 @@ public final class SSCollectionViewPresenter: NSObject {
         super.init()
         collectionView.dataSource = self
         collectionView.delegate = self
+        collectionView.prefetchDataSource = self
         collectionView.registerDefaultCell()
         collectionView.registerDefaultReusableViews(
             ofKind: UICollectionView.elementKindSectionHeader
