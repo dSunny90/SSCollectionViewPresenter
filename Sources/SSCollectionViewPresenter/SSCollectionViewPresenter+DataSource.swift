@@ -94,7 +94,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         guard let section = viewModel?[indexPath.section]
         else { return collectionView.dequeueDefaultSupplementaryView(ofKind: kind, for: indexPath) }
 
-        let item: SSCollectionViewModel.ReusableViewInfo?
+        let item: ReusableViewInfo?
         if kind == UICollectionView.elementKindSectionHeader {
             item = section.header
         } else if kind == UICollectionView.elementKindSectionFooter {

@@ -10,6 +10,11 @@ import UIKit
 @_exported import SendingState
 
 extension SendingState where Base: UICollectionView {
+    public typealias Builder = SSCollectionViewModel.Builder
+    public typealias SectionInfo = SSCollectionViewModel.SectionInfo
+    public typealias CellInfo = SSCollectionViewModel.CellInfo
+    public typealias ReusableViewInfo = SSCollectionViewModel.ReusableViewInfo
+
     /// Returns the currently selected items.
     ///
     /// The presenter automatically tracks selections and deselections via
@@ -17,7 +22,7 @@ extension SendingState where Base: UICollectionView {
     /// `collectionView(_:didDeselectItemAt:)`.
     /// When items are removed from the view model, they are also removed
     /// from this collection.
-    public var selectedItems: [SSCollectionViewModel.CellInfo] {
+    public var selectedItems: [CellInfo] {
         Array(base.presenter?.viewModel?.selectedItems ?? [])
     }
 
@@ -144,9 +149,9 @@ extension SendingState where Base: UICollectionView {
     public func buildViewModel(
         page: Int = 0,
         hasNext: Bool = false,
-        _ build: (SSCollectionViewModel.Builder) -> Void
+        _ build: (Builder) -> Void
     ) -> SSCollectionViewModel {
-        let builder = SSCollectionViewModel.Builder()
+        let builder = Builder()
         build(builder)
         let model = builder.build(page: page, hasNext: hasNext)
         base.presenter?.updateViewModel(model)
@@ -196,9 +201,9 @@ extension SendingState where Base: UICollectionView {
     public func extendViewModel(
         page: Int = 0,
         hasNext: Bool = false,
-        _ build: (SSCollectionViewModel.Builder) -> Void
+        _ build: (Builder) -> Void
     ) -> SSCollectionViewModel {
-        let builder = SSCollectionViewModel.Builder()
+        let builder = Builder()
         build(builder)
 
         var model = base.presenter?.viewModel ?? SSCollectionViewModel(sections: [])
@@ -238,7 +243,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameter block: A closure that receives the `CellInfo` for items
     ///                    to prefetch.
     @available(iOS 10.0, *)
-    public func onPrefetch(_ block: @escaping ([SSCollectionViewModel.CellInfo]) -> Void) {
+    public func onPrefetch(_ block: @escaping ([CellInfo]) -> Void) {
         base.presenter?.prefetchBlock = block
     }
 
@@ -247,7 +252,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameter block: A closure that receives the `CellInfo` for items
     ///                    whose prefetching should be cancelled.
     @available(iOS 10.0, *)
-    public func onCancelPrefetch(_ block: @escaping ([SSCollectionViewModel.CellInfo]) -> Void) {
+    public func onCancelPrefetch(_ block: @escaping ([CellInfo]) -> Void) {
         base.presenter?.cancelPrefetchBlock = block
     }
 
@@ -282,7 +287,7 @@ extension SendingState where Base: UICollectionView {
     public func loadPage(
         _ page: Int,
         hasNext: Bool = false,
-        sections: [SSCollectionViewModel.SectionInfo]
+        sections: [SectionInfo]
     ) -> SSCollectionViewModel {
         var model = base.presenter?.viewModel ?? SSCollectionViewModel()
         model.hasNext = hasNext
@@ -334,9 +339,9 @@ extension SendingState where Base: UICollectionView {
     public func loadPage(
         _ page: Int,
         hasNext: Bool = false,
-        _ build: (SSCollectionViewModel.Builder) -> Void
+        _ build: (Builder) -> Void
     ) -> SSCollectionViewModel {
-        let builder = SSCollectionViewModel.Builder()
+        let builder = Builder()
         build(builder)
         let built = builder.build()
         return loadPage(page, hasNext: hasNext, sections: built.sections)
@@ -449,7 +454,7 @@ extension SendingState where Base: UICollectionView {
     /// No-op if the view model is empty.
     ///
     /// - Parameter section: The section to append.
-    public func appendSection(_ section: SSCollectionViewModel.SectionInfo) {
+    public func appendSection(_ section: SectionInfo) {
         guard var viewModel = base.presenter?.viewModel else { return }
         viewModel.append(section)
         base.presenter?.updateViewModel(viewModel)
@@ -460,7 +465,7 @@ extension SendingState where Base: UICollectionView {
     /// No-op if the view model is empty.
     ///
     /// - Parameter sections: The sections to append.
-    public func appendSections(contentsOf sections: [SSCollectionViewModel.SectionInfo]) {
+    public func appendSections(contentsOf sections: [SectionInfo]) {
         guard var viewModel = base.presenter?.viewModel else { return }
         viewModel.append(contentsOf: sections)
         base.presenter?.updateViewModel(viewModel)
@@ -473,7 +478,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - section: The section to insert.
     ///   - index: The position at which to insert the section.
-    public func insertSection(_ section: SSCollectionViewModel.SectionInfo, at index: Int) {
+    public func insertSection(_ section: SectionInfo, at index: Int) {
         guard var viewModel = base.presenter?.viewModel,
               (0...viewModel.count).contains(index) else { return }
         viewModel.insert(section, at: index)
@@ -487,7 +492,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - sections: The sections to insert.
     ///   - index: The starting position for the insertion.
-    public func insertSections(_ sections: [SSCollectionViewModel.SectionInfo], at index: Int) {
+    public func insertSections(_ sections: [SectionInfo], at index: Int) {
         guard var viewModel = base.presenter?.viewModel,
               (0...viewModel.count).contains(index) else { return }
         viewModel.insert(contentsOf: sections, at: index)
@@ -547,7 +552,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - section: The replacement section.
     ///   - index: The index of the section to replace.
-    public func replaceSection(_ section: SSCollectionViewModel.SectionInfo, at index: Int) {
+    public func replaceSection(_ section: SectionInfo, at index: Int) {
         guard var viewModel = base.presenter?.viewModel,
               viewModel.indices.contains(index) else { return }
         viewModel[index] = section
@@ -561,7 +566,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - section: The replacement section.
     ///   - identifier: The identifier of the section to replace.
-    public func replaceSection(_ section: SSCollectionViewModel.SectionInfo, identifier: String) {
+    public func replaceSection(_ section: SectionInfo, identifier: String) {
         guard var viewModel = base.presenter?.viewModel,
               let index = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
         else { return }
@@ -596,7 +601,7 @@ extension SendingState where Base: UICollectionView {
     ///
     /// - Parameter index: The index of the section.
     /// - Returns: The `SectionInfo` at the index, or `nil`.
-    public func section(at index: Int) -> SSCollectionViewModel.SectionInfo? {
+    public func section(at index: Int) -> SectionInfo? {
         base.presenter?.viewModel?.sectionInfo(at: index)
     }
 
@@ -605,7 +610,7 @@ extension SendingState where Base: UICollectionView {
     ///
     /// - Parameter identifier: The identifier to search for.
     /// - Returns: The matching `SectionInfo`, or `nil`.
-    public func section(identifier: String) -> SSCollectionViewModel.SectionInfo? {
+    public func section(identifier: String) -> SectionInfo? {
         base.presenter?.viewModel?.sections.first(where: { $0.identifier == identifier })
     }
 
@@ -627,7 +632,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - item: The item to append.
     ///   - section: The index of the target section.
-    public func appendItem(_ item: SSCollectionViewModel.CellInfo, toSection section: Int) {
+    public func appendItem(_ item: CellInfo, toSection section: Int) {
         guard var viewModel = base.presenter?.viewModel,
               viewModel.indices.contains(section) else { return }
         viewModel[section].append(item)
@@ -641,7 +646,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - items: The items to append.
     ///   - section: The index of the target section.
-    public func appendItems(contentsOf items: [SSCollectionViewModel.CellInfo], toSection section: Int) {
+    public func appendItems(contentsOf items: [CellInfo], toSection section: Int) {
         guard var viewModel = base.presenter?.viewModel,
               viewModel.indices.contains(section) else { return }
         viewModel[section].append(contentsOf: items)
@@ -655,7 +660,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - item: The item to append.
     ///   - identifier: The identifier of the target section.
-    public func appendItem(_ item: SSCollectionViewModel.CellInfo, sectionIdentifier identifier: String) {
+    public func appendItem(_ item: CellInfo, sectionIdentifier identifier: String) {
         guard var viewModel = base.presenter?.viewModel,
               let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
         else { return }
@@ -670,7 +675,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - items: The items to append.
     ///   - identifier: The identifier of the target section.
-    public func appendItems(contentsOf items: [SSCollectionViewModel.CellInfo], sectionIdentifier identifier: String) {
+    public func appendItems(contentsOf items: [CellInfo], sectionIdentifier identifier: String) {
         guard var viewModel = base.presenter?.viewModel,
               let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier })
         else { return }
@@ -683,7 +688,7 @@ extension SendingState where Base: UICollectionView {
     /// No-op if the view model is empty.
     ///
     /// - Parameter item: The item to append.
-    public func appendItemToLastSection(_ item: SSCollectionViewModel.CellInfo) {
+    public func appendItemToLastSection(_ item: CellInfo) {
         guard var viewModel = base.presenter?.viewModel,
               !viewModel.isEmpty else { return }
         let lastIndex = viewModel.count - 1
@@ -696,7 +701,7 @@ extension SendingState where Base: UICollectionView {
     /// No-op if the view model is empty.
     ///
     /// - Parameter items: The items to append.
-    public func appendItemsToLastSection(contentsOf items: [SSCollectionViewModel.CellInfo]) {
+    public func appendItemsToLastSection(contentsOf items: [CellInfo]) {
         guard var viewModel = base.presenter?.viewModel,
               !viewModel.isEmpty else { return }
         let lastIndex = viewModel.count - 1
@@ -711,7 +716,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - item: The item to insert.
     ///   - indexPath: The index path where the item will be inserted.
-    public func insertItem(_ item: SSCollectionViewModel.CellInfo, at indexPath: IndexPath) {
+    public func insertItem(_ item: CellInfo, at indexPath: IndexPath) {
         guard var viewModel = base.presenter?.viewModel,
               indexPath.section < viewModel.count,
               indexPath.item <= viewModel[indexPath.section].count else { return }
@@ -726,7 +731,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - items: The items to insert.
     ///   - indexPath: The starting index path for insertion.
-    public func insertItems(_ items: [SSCollectionViewModel.CellInfo], at indexPath: IndexPath) {
+    public func insertItems(_ items: [CellInfo], at indexPath: IndexPath) {
         guard var viewModel = base.presenter?.viewModel,
               indexPath.section < viewModel.count,
               indexPath.item <= viewModel[indexPath.section].count else { return }
@@ -745,7 +750,7 @@ extension SendingState where Base: UICollectionView {
     ///   - row: The row index for insertion.
     ///   - identifier: The identifier of the target section.
     public func insertItem(
-        _ item: SSCollectionViewModel.CellInfo,
+        _ item: CellInfo,
         atRow row: Int,
         sectionIdentifier identifier: String
     ) {
@@ -768,7 +773,7 @@ extension SendingState where Base: UICollectionView {
     ///   - row: The starting row index for insertion.
     ///   - identifier: The identifier of the target section.
     public func insertItems(
-        _ items: [SSCollectionViewModel.CellInfo],
+        _ items: [CellInfo],
         atRow row: Int,
         sectionIdentifier identifier: String
     ) {
@@ -864,7 +869,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameters:
     ///   - item: The replacement item.
     ///   - indexPath: The index path of the item to replace.
-    public func replaceItem(_ item: SSCollectionViewModel.CellInfo, at indexPath: IndexPath) {
+    public func replaceItem(_ item: CellInfo, at indexPath: IndexPath) {
         guard var viewModel = base.presenter?.viewModel,
               indexPath.section < viewModel.count,
               indexPath.row < viewModel[indexPath.section].count else { return }
@@ -883,7 +888,7 @@ extension SendingState where Base: UICollectionView {
     ///   - row: The row index of the item to replace.
     ///   - identifier: The identifier of the target section.
     public func replaceItem(
-        _ item: SSCollectionViewModel.CellInfo,
+        _ item: CellInfo,
         atRow row: Int,
         sectionIdentifier identifier: String
     ) {
@@ -937,7 +942,7 @@ extension SendingState where Base: UICollectionView {
     ///
     /// - Parameter indexPath: The index path of the item.
     /// - Returns: The `CellInfo` at the index path, or `nil`.
-    public func item(at indexPath: IndexPath) -> SSCollectionViewModel.CellInfo? {
+    public func item(at indexPath: IndexPath) -> CellInfo? {
         guard let viewModel = base.presenter?.viewModel,
               indexPath.section < viewModel.count,
               indexPath.item < viewModel[indexPath.section].count
@@ -952,7 +957,7 @@ extension SendingState where Base: UICollectionView {
     ///   - row: The row index of the item.
     ///   - identifier: The identifier of the target section.
     /// - Returns: The `CellInfo`, or `nil`.
-    public func item(atRow row: Int, sectionIdentifier identifier: String) -> SSCollectionViewModel.CellInfo? {
+    public func item(atRow row: Int, sectionIdentifier identifier: String) -> CellInfo? {
         guard let viewModel = base.presenter?.viewModel,
               let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
               row < viewModel[sectionIndex].count
