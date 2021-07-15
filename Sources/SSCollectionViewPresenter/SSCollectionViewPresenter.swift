@@ -23,12 +23,23 @@ public final class SSCollectionViewPresenter: NSObject {
     /// Number of times items are duplicated for infinite scrolling.
     internal let duplicatedItemCount: Int = 3
 
+    /// The data source mode (diffable or classic).
+    internal let dataSourceMode: DataSourceMode
+
     // MARK: - ViewModel
 
     /// The current view model backing the collection view.
     internal var viewModel: SSCollectionViewModel? {
         didSet {
             guard let viewModel = viewModel, let collectionView = collectionView else { return }
+            // iOS 14 introduced UICollectionView's registration-based API as
+            // a more modern alternative to explicit register(_:) calls.
+            // I know this API exists, but I have not adopted it here yet
+            // because this library still supports iOS 8.
+            //
+            // Once I raise the library's minimum deployment target to iOS 14 or
+            // later, and verify that this approach fits the library well,
+            // I plan to revisit the design and consider adopting it.
             for section in viewModel.sections {
                 for item in section.items {
                     collectionView.registerCell(item.binderType)
@@ -41,6 +52,12 @@ public final class SSCollectionViewPresenter: NSObject {
                 }
             }
             isLoadingNextPage = false
+
+            if #available(iOS 13.0, *) {
+                if dataSourceMode == .diffable {
+                    diffableSupportCore?.updateSnapshot(with: viewModel)
+                }
+            }
         }
     }
 
@@ -69,6 +86,20 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Closure called when prefetching should be cancelled.
     internal var cancelPrefetchBlock: (([CellInfo]) -> Void)?
+
+    // MARK: - Diffable Data Source Support
+
+    @available(iOS 13.0, *)
+    private var diffableSupportCore: DiffableSupportCore? {
+        get {
+            _diffableSupportCore as? DiffableSupportCore
+        }
+        set {
+            _diffableSupportCore = newValue
+        }
+    }
+
+    private var _diffableSupportCore: Any?
 
     // MARK: - Paging Options
 
@@ -144,14 +175,16 @@ public final class SSCollectionViewPresenter: NSObject {
 
     public init(
         collectionView: UICollectionView,
-        actionHandler: ActionHandlingProvider? = nil
+        actionHandler: ActionHandlingProvider? = nil,
+        dataSourceMode: DataSourceMode = .traditional
     ) {
         self.collectionView = collectionView
         if let actionHandler = actionHandler {
             self.actionHandler = AnyActionHandlingProvider(actionHandler)
         }
+        self.dataSourceMode = dataSourceMode
         super.init()
-        collectionView.dataSource = self
+        configureDataSource()
         collectionView.delegate = self
         collectionView.prefetchDataSource = self
         collectionView.registerDefaultCell()
@@ -343,6 +376,30 @@ public final class SSCollectionViewPresenter: NSObject {
         }
     }
 
+    // MARK: - Configuration
+
+    /// Configures the data source for the collection view.
+    ///
+    /// Sets up either traditional data source callbacks or a diffable data source
+    /// based on the specified mode.
+    private func configureDataSource() {
+        guard let collectionView = collectionView else { return }
+        switch dataSourceMode {
+        case .traditional:
+            collectionView.dataSource = self
+        case .diffable:
+            if #available(iOS 13.0, *) {
+                self.diffableSupportCore = DiffableSupportCore()
+                self.diffableSupportCore?.configureDiffableDataSource(
+                    in: collectionView,
+                    anyActionHandler: actionHandler
+                )
+            } else {
+                assertionFailure("Diffable is not supported below iOS 13.")
+            }
+        }
+    }
+
     // MARK: - Pagination
 
     /// Determines whether the next page should be loaded based on scroll position.
@@ -383,6 +440,39 @@ public final class SSCollectionViewPresenter: NSObject {
             with: nil,
             afterDelay: pagingTimeInterval
         )
+    }
+
+    // MARK: - Presentation
+
+    /// Applies the current snapshot to the diffable data source.
+    ///
+    /// Only applies when using the `.diffable` data source mode. Has no effect
+    /// in traditional mode.
+    ///
+    /// - Parameter animated: Whether to animate the changes.
+    @available(iOS 13.0, *)
+    internal func applySnapshot(animated: Bool) {
+        guard dataSourceMode == .diffable else { return }
+        diffableSupportCore?.applySnapshot(animated: animated)
+    }
+
+    /// Applies a section snapshot for a specific section.
+    @available(iOS 14.0, *)
+    internal func applySectionSnapshot(
+        _ items: [CellInfo],
+        to section: SectionInfo,
+        animated: Bool
+    ) {
+        guard dataSourceMode == .diffable else { return }
+        diffableSupportCore?.applySectionSnapshot(items, to: section, animated: animated)
+    }
+
+    /// Returns the current section snapshot for a given section.
+    @available(iOS 14.0, *)
+    internal func sectionSnapshot(
+        for section: SectionInfo
+    ) -> NSDiffableDataSourceSectionSnapshot<CellInfo>? {
+        diffableSupportCore?.sectionSnapshot(for: section)
     }
 
     // MARK: - Paging Actions

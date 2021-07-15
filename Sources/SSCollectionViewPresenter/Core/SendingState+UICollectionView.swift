@@ -30,13 +30,18 @@ extension SendingState where Base: UICollectionView {
 
     /// Sets up the presenter for the collection view
     ///
-    /// - Parameter actionHandler: An optional handler for user interactions.
+    /// - Parameters:
+    ///   - actionHandler: Optional handler for user interactions.
+    ///   - dataSourceMode: Data mode (`.traditional`, `.diffable`).
+    ///                     Default is `.traditional`.
     public func setupPresenter(
-        actionHandler: (any ActionHandlingProvider)? = nil
+        actionHandler: ActionHandlingProvider? = nil,
+        dataSourceMode: SSCollectionViewPresenter.DataSourceMode = .traditional
     ) {
         base.presenter = SSCollectionViewPresenter(
             collectionView: base,
-            actionHandler: actionHandler
+            actionHandler: actionHandler,
+            dataSourceMode: dataSourceMode
         )
     }
 
@@ -121,7 +126,8 @@ extension SendingState where Base: UICollectionView {
     /// it to the presenter.
     ///
     /// This method replaces any existing view model. After calling this method,
-    /// you must manually refresh the UI by calling `collectionView.reloadData()`.
+    /// you must manually refresh the UI by calling `collectionView.reloadData()`
+    /// or `collectionView.ss.applySnapshot(animated:)`.
     ///
     /// # Example
     /// ```swift
@@ -177,7 +183,8 @@ extension SendingState where Base: UICollectionView {
     /// - If a section identifier is new, the entire section is appended
     ///
     /// After calling this method, you must manually refresh the UI by calling
-    /// `collectionView.reloadData()`.
+    /// `collectionView.reloadData()`
+    /// or `collectionView.ss.applySnapshot(animated:)`.
     ///
     /// # Example
     /// ```swift
@@ -263,6 +270,58 @@ extension SendingState where Base: UICollectionView {
         base.presenter?.cancelPrefetchBlock = block
     }
 
+    // MARK: - Snapshot Application (iOS 13+)
+
+    /// Applies the current diffable data source snapshot.
+    ///
+    /// Only applies when using the `.diffable` data source mode.
+    ///
+    /// - Parameter animated: Whether to animate the changes. Default is `true`.
+    @available(iOS 13.0, *)
+    public func applySnapshot(animated: Bool = true) {
+        base.presenter?.applySnapshot(animated: animated)
+    }
+
+    // MARK: - Section Snapshot (iOS 14+)
+
+    /// Applies a section snapshot for the section matching the given identifier.
+    ///
+    /// Updates only the specified section without affecting other sections.
+    /// Requires `.diffable` data source mode.
+    ///
+    /// - Parameters:
+    ///   - items: The items to include in the section snapshot.
+    ///   - identifier: The identifier of the target section.
+    ///   - animated: Whether to animate the changes. Default is `true`.
+    @available(iOS 14.0, *)
+    public func applySectionSnapshot(
+        _ items: [CellInfo],
+        toSectionIdentifier identifier: String,
+        animated: Bool = true
+    ) {
+        guard let section = base.presenter?.viewModel?.sections
+            .first(where: { $0.identifier == identifier })
+        else { return }
+        base.presenter?.applySectionSnapshot(items, to: section, animated: animated)
+    }
+
+    /// Applies a section snapshot for the section at the given index.
+    ///
+    /// - Parameters:
+    ///   - items: The items to include in the section snapshot.
+    ///   - sectionIndex: The index of the target section.
+    ///   - animated: Whether to animate the changes. Default is `true`.
+    @available(iOS 14.0, *)
+    public func applySectionSnapshot(
+        _ items: [CellInfo],
+        toSectionAt sectionIndex: Int,
+        animated: Bool = true
+    ) {
+        guard let section = base.presenter?.viewModel?.sectionInfo(at: sectionIndex)
+        else { return }
+        base.presenter?.applySectionSnapshot(items, to: section, animated: animated)
+    }
+
     // MARK: - Page-Based Loading
 
     /// Loads a page of data into the view model's page map and
@@ -281,7 +340,8 @@ extension SendingState where Base: UICollectionView {
     ///   in page order.
     ///
     /// After calling this method, you must manually refresh the UI
-    /// by calling `collectionView.reloadData()`.
+    /// by calling `collectionView.reloadData()`
+    /// or `collectionView.ss.applySnapshot(animated:)`.
     ///
     /// - Parameters:
     ///   - page: The page number for this batch of data.
