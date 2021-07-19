@@ -31,15 +31,19 @@ extension SendingState where Base: UICollectionView {
     /// Sets up the presenter for the collection view
     ///
     /// - Parameters:
+    ///   - layoutKind: Layout type (`.flow` or `.compositional`).
+    ///                 Default is `.flow`.
     ///   - actionHandler: Optional handler for user interactions.
     ///   - dataSourceMode: Data mode (`.traditional`, `.diffable`).
     ///                     Default is `.traditional`.
     public func setupPresenter(
+        layoutKind: SSCollectionViewPresenter.LayoutKind = .flow,
         actionHandler: ActionHandlingProvider? = nil,
         dataSourceMode: SSCollectionViewPresenter.DataSourceMode = .traditional
     ) {
         base.presenter = SSCollectionViewPresenter(
             collectionView: base,
+            layoutKind: layoutKind,
             actionHandler: actionHandler,
             dataSourceMode: dataSourceMode
         )
@@ -437,6 +441,53 @@ extension SendingState where Base: UICollectionView {
     ///   Use this to fetch additional data from your API.
     public func onNextRequest(_ block: @escaping (SSCollectionViewModel) -> Void) {
         base.presenter?.nextRequestBlock = block
+    }
+
+    // MARK: - Compositional Layout Callbacks
+
+    /// Installs a `visibleItemsInvalidationHandler` on the compositional
+    /// layout section at the given index.
+    ///
+    /// The closure is invoked during scrolling for that section and can be
+    /// used to drive scroll-linked animations such as parallax, fading,
+    /// scaling, or page indicators.
+    ///
+    /// - Note: The handler is read at layout-build time. Setting it after
+    /// the layout has already been built requires invalidating the layout
+    /// (e.g. via `collectionView.collectionViewLayout.invalidateLayout()`)
+    /// for the change to take effect.
+    ///
+    /// Only available when `layoutKind` is `.compositional`.
+    ///
+    /// - Parameters:
+    ///   - section: The target section index.
+    ///   - block: The handler, or `nil` to remove an existing handler.
+    @available(iOS 13.0, *)
+    public func onVisibleItemsInvalidation(
+        section: Int,
+        _ block: SSCollectionViewPresenter.VisibleItemsInvalidationHandler?
+    ) {
+        if let block = block {
+            base.presenter?.visibleItemsInvalidationHandlers[section] = block
+        } else {
+            base.presenter?.visibleItemsInvalidationHandlers.removeValue(forKey: section)
+        }
+    }
+
+    /// Installs a `visibleItemsInvalidationHandler` that applies to every
+    /// compositional layout section that does not have its own per-section
+    /// handler set via ``onVisibleItemsInvalidation(section:_:)``.
+    ///
+    /// - Parameter block: The handler, or `nil` to remove the global handler.
+    @available(iOS 13.0, *)
+    public func onVisibleItemsInvalidation(
+        _ block: SSCollectionViewPresenter.VisibleItemsInvalidationHandler?
+    ) {
+        if let block = block {
+            base.presenter?.visibleItemsInvalidationHandlers[-1] = block
+        } else {
+            base.presenter?.visibleItemsInvalidationHandlers.removeValue(forKey: -1)
+        }
     }
 
     // MARK: - Paging Configuration

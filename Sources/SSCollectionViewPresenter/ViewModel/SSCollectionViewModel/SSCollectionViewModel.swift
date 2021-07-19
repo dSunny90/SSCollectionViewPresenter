@@ -11,6 +11,15 @@ fileprivate typealias SectionInfo = SSCollectionViewModel.SectionInfo
 
 /// A data model that represents the entire content of a collection view,
 /// used by `SSCollectionViewPresenter` to render and manage UI states.
+///
+/// - Note:
+///   - The `sections` array holds `SectionInfo` objects, each describing
+///     the cells and supplementary views (header, footer) for a section.
+///   - This model is UI-agnostic and does not handle layout logic directly.
+///     Layout-specific options (e.g., spacing, inset) within `SectionInfo`
+///     apply only when using a `UICollectionViewFlowLayout`.
+///   - For `UICollectionViewCompositionalLayout`, the layout is defined
+///     independently and not influenced by these `SectionInfo` properties.
 public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCollection {
     // MARK: - RandomAccessCollection
 

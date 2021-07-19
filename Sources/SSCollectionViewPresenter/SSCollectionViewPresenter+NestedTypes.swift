@@ -10,6 +10,34 @@ import UIKit
 // MARK: - Nested Types
 
 extension SSCollectionViewPresenter {
+    /// A closure invoked during scrolling for each section that has it
+    /// installed, mirroring
+    /// `NSCollectionLayoutSection.visibleItemsInvalidationHandler`.
+    ///
+    /// Use this to drive scroll-driven animations (parallax, fade, scale,
+    /// snap indicators, etc.) on visible items in a compositional layout
+    /// section.
+    ///
+    /// - Parameters:
+    ///   - visibleItems: The currently visible layout items.
+    ///   - contentOffset: The section's current content offset.
+    ///   - environment: The current layout environment.
+    @available(iOS 13.0, *)
+    public typealias VisibleItemsInvalidationHandler =
+        ([NSCollectionLayoutVisibleItem], CGPoint, NSCollectionLayoutEnvironment) -> Void
+
+    /// Defines the layout type for the collection view.
+    public enum LayoutKind {
+        /// Standard flow layout with manual sizing.
+        case flow
+
+        /// Compositional layout with optional configuration.
+        case compositional(CompositionalLayoutConfig? = nil)
+
+        /// List layout with table view-like appearance (iOS 14+).
+        case list(ListLayoutConfig? = nil)
+    }
+
     /// Defines the data source implementation mode.
     public enum DataSourceMode {
         /// Classic data source using delegate callbacks.
@@ -17,6 +45,426 @@ extension SSCollectionViewPresenter {
 
         /// Modern diffable data source (iOS 13+).
         case diffable
+    }
+
+
+    // MARK: - CompositionalLayoutConfig
+
+    /// Configuration for building a `UICollectionViewCompositionalLayout`.
+    ///
+    /// Provides a simplified way to create compositional layouts with
+    /// common patterns like multi-column grids and horizontal scrolling sections.
+    ///
+    /// ## Sizing Modes
+    ///
+    /// | Mode | Behavior |
+    /// |------|----------|
+    /// | `.uniform(columns:width:height:)` | All items share the same size.|
+    /// | `.dynamic` | Each cell determines its own size. |
+    public struct CompositionalLayoutConfig {
+        static let defaultItemLength: CGFloat = 50
+
+        /// Section configurations for each section in the collection view.
+        var sections: [SSCompositionalLayoutSection]
+
+        /// Creates a `UICollectionViewCompositionalLayout`
+        /// from the configuration.
+        ///
+        /// - Parameter viewModelProvider: A closure that returns the current
+        ///   view model. Used only for `.dynamic` sections to query
+        ///   `CellInfo.size(constrainedTo:)` at layout time.
+        /// - Returns: A configured compositional layout instance.
+        @available(iOS 13.0, *)
+        func makeLayout(
+            viewModelProvider: @escaping () -> SSCollectionViewModel? = { nil },
+            visibleItemsInvalidationHandlerProvider: @escaping (Int) -> VisibleItemsInvalidationHandler? = { _ in nil }
+        ) -> UICollectionViewCompositionalLayout {
+            return UICollectionViewCompositionalLayout { idx, environment in
+                guard idx < self.sections.count,
+                      idx < viewModelProvider()?.count ?? 0
+                else { return nil }
+
+                let config = self.sections[idx]
+                let containerSize = environment.container.contentSize
+                let sectionInfo = viewModelProvider()?[idx]
+                let invalidationHandler = visibleItemsInvalidationHandlerProvider(idx)
+
+                let group: NSCollectionLayoutGroup
+
+                switch config.itemSize {
+                case .uniform(let columns, let fixedWidth, let height):
+                    // uniform -- all items same size
+                    group = Self.makeUniformGroup(
+                        config: config,
+                        columns: columns,
+                        fixedWidth: fixedWidth,
+                        height: height
+                    )
+
+                case .dynamic:
+                    // dynamic -- each cell provides its own size.
+                    let cellInfos = sectionInfo?.items ?? []
+                    let cellSizes: [CGSize?] = cellInfos.map {
+                        $0.size(constrainedTo: containerSize)
+                    }
+
+                    let subitems = cellSizes.map { size in
+                        let w: NSCollectionLayoutDimension
+                        let h: NSCollectionLayoutDimension
+
+                        if let size = size {
+                            w = .absolute(size.width)
+                            h = .absolute(size.height)
+                        } else {
+                            if config.direction == .horizontal {
+                                w = .estimated(Self.defaultItemLength)
+                                h = .fractionalHeight(1.0)
+                            } else {
+                                w = .fractionalWidth(1.0)
+                                h = .estimated(Self.defaultItemLength)
+                            }
+                        }
+
+                        return NSCollectionLayoutItem(
+                            layoutSize: NSCollectionLayoutSize(
+                                widthDimension: w,
+                                heightDimension: h
+                            )
+                        )
+                    }
+
+                    let groupSize: NSCollectionLayoutSize
+                    if config.direction == .horizontal {
+                        let w = cellSizes.first.flatMap {
+                            $0?.width
+                        } ?? containerSize.width
+                        groupSize = NSCollectionLayoutSize(
+                            widthDimension: .estimated(w),
+                            heightDimension: .fractionalHeight(1.0)
+                        )
+                        group = NSCollectionLayoutGroup.horizontal(
+                            layoutSize: groupSize,
+                            subitems: subitems
+                        )
+                    } else {
+                        let h = cellSizes.first.flatMap {
+                            $0?.height
+                        } ?? containerSize.height
+                        groupSize = NSCollectionLayoutSize(
+                            widthDimension: .fractionalWidth(1.0),
+                            heightDimension: .estimated(h)
+                        )
+                        group = NSCollectionLayoutGroup.vertical(
+                            layoutSize: groupSize,
+                            subitems: subitems
+                        )
+                    }
+                }
+
+                // Apply spacing/insets/supplementaries on the section.
+                return Self.configureSection(
+                    group: group,
+                    config: config,
+                    sectionInfo: sectionInfo,
+                    containerSize: containerSize,
+                    visibleItemsInvalidationHandler: invalidationHandler
+                )
+            }
+        }
+
+        // MARK: - Uniform Group Builder
+
+        @available(iOS 13.0, *)
+        private static func makeUniformGroup(
+            config: SSCompositionalLayoutSection,
+            columns: Int,
+            fixedWidth: CGFloat?,
+            height: CGFloat?
+        ) -> NSCollectionLayoutGroup {
+            // Item width
+            let width: NSCollectionLayoutDimension
+            if let fixedWidth = fixedWidth {
+                width = .absolute(fixedWidth)
+            } else {
+                width = .fractionalWidth(1 / CGFloat(columns))
+            }
+
+            // Item height
+            let heightDimension: NSCollectionLayoutDimension
+            if let h = height {
+                heightDimension = .absolute(h)
+            } else {
+                heightDimension = .estimated(Self.defaultItemLength)
+            }
+
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: width,
+                heightDimension: heightDimension
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+
+            // Group height
+            let groupHeight: NSCollectionLayoutDimension
+            if let h = height {
+                groupHeight = .absolute(h)
+            } else {
+                groupHeight = .estimated(Self.defaultItemLength)
+            }
+
+            let groupSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1.0),
+                heightDimension: groupHeight
+            )
+
+            if config.direction == .horizontal {
+                return .horizontal(layoutSize: groupSize,
+                                   subitem: item,
+                                   count: columns)
+            } else {
+                return .vertical(layoutSize: groupSize,
+                                 subitem: item,
+                                 count: columns)
+            }
+        }
+
+        @available(iOS 13.0, *)
+        private static func configureSection(
+            group: NSCollectionLayoutGroup,
+            config: SSCompositionalLayoutSection,
+            sectionInfo: SSCollectionViewModel.SectionInfo?,
+            containerSize: CGSize,
+            visibleItemsInvalidationHandler: VisibleItemsInvalidationHandler?
+        ) -> NSCollectionLayoutSection {
+            // interItemSpacing on the group.
+            if let spacing = config.itemSpacing ?? sectionInfo?.minimumInteritemSpacing {
+                group.interItemSpacing = .fixed(spacing)
+            }
+
+            let section = NSCollectionLayoutSection(group: group)
+
+            // interGroupSpacing.
+            if let lineSpacing = config.lineSpacing ?? sectionInfo?.minimumLineSpacing {
+                section.interGroupSpacing = lineSpacing
+            }
+
+            // contentInsets.
+            if let inset = config.sectionInset ?? sectionInfo?.sectionInset {
+                section.contentInsets = NSDirectionalEdgeInsets(
+                    top: inset.top,
+                    leading: inset.left,
+                    bottom: inset.bottom,
+                    trailing: inset.right
+                )
+            }
+
+            section.orthogonalScrollingBehavior = .init(
+                rawValue: config.scrolling?.rawValue ?? 0
+            ) ?? .none
+
+            // Header / footer boundary supplementary items, sized via
+            // the SectionInfo's header/footer `size(constrainedTo:)`.
+            var supplementaries = [NSCollectionLayoutBoundarySupplementaryItem]()
+            if let header = sectionInfo?.header {
+                supplementaries.append(
+                    Self.makeBoundarySupplementaryItem(
+                        size: header.size(constrainedTo: containerSize) ?? .zero,
+                        elementKind: UICollectionView.elementKindSectionHeader,
+                        alignment: .top
+                    )
+                )
+            }
+            if let footer = sectionInfo?.footer {
+                supplementaries.append(
+                    Self.makeBoundarySupplementaryItem(
+                        size: footer.size(constrainedTo: containerSize) ?? .zero,
+                        elementKind: UICollectionView.elementKindSectionFooter,
+                        alignment: .bottom
+                    )
+                )
+            }
+            if !supplementaries.isEmpty {
+                section.boundarySupplementaryItems = supplementaries
+            }
+
+            section.supplementariesFollowContentInsets = config.supplementariesFollowContentInsets
+
+            // Per-section scroll-driven invalidation (animations, parallax, ...)
+            if let handler = visibleItemsInvalidationHandler {
+                section.visibleItemsInvalidationHandler = handler
+            }
+
+            return section
+        }
+
+        @available(iOS 13.0, *)
+        private static func makeBoundarySupplementaryItem(
+            size: CGSize,
+            elementKind: String,
+            alignment: NSRectAlignment
+        ) -> NSCollectionLayoutBoundarySupplementaryItem {
+            let width: NSCollectionLayoutDimension =
+                size.width > 0 ? .absolute(size.width) : .fractionalWidth(1.0)
+            let height: NSCollectionLayoutDimension =
+                size.height > 0 ? .absolute(size.height) : .estimated(Self.defaultItemLength)
+            return NSCollectionLayoutBoundarySupplementaryItem(
+                layoutSize: NSCollectionLayoutSize(
+                    widthDimension: width,
+                    heightDimension: height
+                ),
+                elementKind: elementKind,
+                alignment: alignment
+            )
+        }
+    }
+
+    // MARK: - ListLayoutConfig
+
+    /// Configuration for list-style collection view layouts (iOS 14+).
+    ///
+    /// Creates a `UICollectionViewCompositionalLayout` using
+    /// `UICollectionLayoutListConfiguration` for UITableView-like appearance.
+    ///
+    /// # Example
+    /// ```swift
+    /// let config = SSCollectionViewPresenter.ListLayoutConfig(
+    ///     appearance: .insetGrouped,
+    ///     showsSeparators: true,
+    ///     headerMode: .supplementary
+    /// )
+    /// collectionView.ss.setupPresenter(layoutKind: .list(config))
+    /// ```
+    public struct ListLayoutConfig {
+        /// The visual style of the list.
+        public enum Appearance: Int {
+            case plain = 0
+            case grouped = 1
+            case insetGrouped = 2
+            case sidebar = 3
+            case sidebarPlain = 4
+        }
+
+        /// Header display mode for list sections.
+        public enum HeaderMode: Int {
+            case none = 0
+            case supplementary = 1
+            case firstItemInSection = 2
+        }
+
+        /// Footer display mode for list sections.
+        public enum FooterMode: Int {
+            case none = 0
+            case supplementary = 1
+        }
+
+        /// The visual style of the list.
+        public var appearance: Appearance
+
+        /// Whether to show separators between items.
+        public var showsSeparators: Bool
+
+        /// How section headers are displayed.
+        public var headerMode: HeaderMode
+
+        /// How section footers are displayed.
+        public var footerMode: FooterMode
+
+        /// Background color for the list section.
+        public var backgroundColor: UIColor?
+
+        /// Provider for leading swipe actions on items.
+        public var leadingSwipeActionsConfigurationProvider: ((IndexPath) -> UISwipeActionsConfiguration?)?
+
+        /// Provider for trailing swipe actions on items.
+        public var trailingSwipeActionsConfigurationProvider: ((IndexPath) -> UISwipeActionsConfiguration?)?
+
+        // MARK: - iOS 14.5+ Properties (stored as Any to avoid availability on stored properties)
+
+        private var _separatorConfiguration: Any?
+        private var _itemSeparatorHandler: Any?
+
+        /// The default separator configuration for the list (iOS 14.5+).
+        @available(iOS 14.5, *)
+        public var separatorConfiguration: UIListSeparatorConfiguration {
+            get {
+                (_separatorConfiguration as? UIListSeparatorConfiguration)
+                    ?? UIListSeparatorConfiguration(listAppearance: {
+                        switch appearance {
+                        case .plain:        return .plain
+                        case .grouped:      return .grouped
+                        case .insetGrouped: return .insetGrouped
+                        case .sidebar:      return .sidebar
+                        case .sidebarPlain: return .sidebarPlain
+                        }
+                    }())
+            }
+            set { _separatorConfiguration = newValue }
+        }
+
+        /// Per-item separator configuration handler (iOS 14.5+).
+        @available(iOS 14.5, *)
+        public var itemSeparatorHandler: ((IndexPath, UIListSeparatorConfiguration) -> UIListSeparatorConfiguration)? {
+            get { _itemSeparatorHandler as? (IndexPath, UIListSeparatorConfiguration) -> UIListSeparatorConfiguration }
+            set { _itemSeparatorHandler = newValue }
+        }
+
+        public init(
+            appearance: Appearance = .plain,
+            showsSeparators: Bool = true,
+            headerMode: HeaderMode = .none,
+            footerMode: FooterMode = .none,
+            backgroundColor: UIColor? = nil,
+            leadingSwipeActionsConfigurationProvider: ((IndexPath) -> UISwipeActionsConfiguration?)? = nil,
+            trailingSwipeActionsConfigurationProvider: ((IndexPath) -> UISwipeActionsConfiguration?)? = nil
+        ) {
+            self.appearance = appearance
+            self.showsSeparators = showsSeparators
+            self.headerMode = headerMode
+            self.footerMode = footerMode
+            self.backgroundColor = backgroundColor
+            self.leadingSwipeActionsConfigurationProvider = leadingSwipeActionsConfigurationProvider
+            self.trailingSwipeActionsConfigurationProvider = trailingSwipeActionsConfigurationProvider
+        }
+
+        /// Creates a `UICollectionViewCompositionalLayout` with list configuration.
+        @available(iOS 14.0, *)
+        func makeLayout() -> UICollectionViewCompositionalLayout {
+            let uiAppearance: UICollectionLayoutListConfiguration.Appearance
+            switch appearance {
+            case .plain:        uiAppearance = .plain
+            case .grouped:      uiAppearance = .grouped
+            case .insetGrouped: uiAppearance = .insetGrouped
+            case .sidebar:      uiAppearance = .sidebar
+            case .sidebarPlain: uiAppearance = .sidebarPlain
+            }
+
+            var config = UICollectionLayoutListConfiguration(appearance: uiAppearance)
+            config.showsSeparators = showsSeparators
+            config.backgroundColor = backgroundColor
+            config.leadingSwipeActionsConfigurationProvider = leadingSwipeActionsConfigurationProvider
+            config.trailingSwipeActionsConfigurationProvider = trailingSwipeActionsConfigurationProvider
+
+            switch headerMode {
+            case .none:                 config.headerMode = .none
+            case .supplementary:        config.headerMode = .supplementary
+            case .firstItemInSection:   config.headerMode = .firstItemInSection
+            }
+
+            switch footerMode {
+            case .none:             config.footerMode = .none
+            case .supplementary:    config.footerMode = .supplementary
+            }
+
+            if #available(iOS 14.5, *) {
+                if let separatorConfig = _separatorConfiguration as? UIListSeparatorConfiguration {
+                    config.separatorConfiguration = separatorConfig
+                }
+                if let handler = _itemSeparatorHandler as? ((IndexPath, UIListSeparatorConfiguration) -> UIListSeparatorConfiguration) {
+                    config.itemSeparatorHandler = handler
+                }
+            }
+
+            return UICollectionViewCompositionalLayout.list(using: config)
+        }
     }
 
     // MARK: - DiffableSupportCore
