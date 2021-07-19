@@ -10,6 +10,18 @@ import UIKit
 // MARK: - Nested Types
 
 extension SSCollectionViewPresenter {
+    /// Defines the layout type for the collection view.
+    public enum LayoutKind {
+        /// Standard flow layout with manual sizing.
+        case flow
+
+        /// Compositional layout with optional configuration.
+        case compositional(CompositionalLayoutConfig? = nil)
+
+        /// List layout with table view-like appearance (iOS 14+).
+        case list(ListLayoutConfig? = nil)
+    }
+
     /// Defines the data source implementation mode.
     public enum DataSourceMode {
         /// Classic data source using delegate callbacks.
@@ -17,6 +29,161 @@ extension SSCollectionViewPresenter {
 
         /// Modern diffable data source (iOS 13+).
         case diffable
+    }
+
+
+    // MARK: - CompositionalLayoutConfig
+
+    /// Configuration for building a `UICollectionViewCompositionalLayout`.
+    ///
+    /// Provides a simplified way to create compositional layouts with
+    /// common patterns like multi-column grids and horizontal scrolling sections.
+    public struct CompositionalLayoutConfig {
+        /// Section configurations for each section in the collection view.
+        var sections: [SSCompositionalLayoutSection]
+
+        /// Creates a `UICollectionViewCompositionalLayout` from the configuration.
+        ///
+        /// - Returns: A configured compositional layout instance.
+        @available(iOS 13.0, *)
+        func makeLayout() -> UICollectionViewCompositionalLayout {
+            return UICollectionViewCompositionalLayout { idx, _ in
+                let config = self.sections[idx]
+
+                let width: NSCollectionLayoutDimension
+                if let fixedWidth = config.itemWidth {
+                    width = .absolute(fixedWidth)
+                } else {
+                    width = .fractionalWidth(1 / CGFloat(config.columns))
+                }
+
+                let itemSize = NSCollectionLayoutSize(
+                    widthDimension: width,
+                    heightDimension: .absolute(config.height)
+                )
+                let item = NSCollectionLayoutItem(layoutSize: itemSize)
+
+                let groupSize = NSCollectionLayoutSize(
+                    widthDimension: .fractionalWidth(1.0),
+                    heightDimension: .absolute(config.height)
+                )
+
+                let group: NSCollectionLayoutGroup
+                if config.direction == .horizontal {
+                    group = NSCollectionLayoutGroup.horizontal(
+                        layoutSize: groupSize,
+                        subitem: item,
+                        count: config.columns
+                    )
+
+                    let section = NSCollectionLayoutSection(group: group)
+                    section.orthogonalScrollingBehavior = .init(
+                        rawValue: config.scrolling?.rawValue ?? 0
+                    ) ?? .none
+                    return section
+                } else {
+                    group = NSCollectionLayoutGroup.vertical(
+                        layoutSize: groupSize,
+                        subitem: item,
+                        count: config.columns
+                    )
+                    return NSCollectionLayoutSection(group: group)
+                }
+            }
+        }
+    }
+
+    // MARK: - ListLayoutConfig
+
+    /// Configuration for list-style collection view layouts (iOS 14+).
+    ///
+    /// Creates a `UICollectionViewCompositionalLayout` using
+    /// `UICollectionLayoutListConfiguration` for UITableView-like appearance.
+    ///
+    /// # Example
+    /// ```swift
+    /// let config = SSCollectionViewPresenter.ListLayoutConfig(
+    ///     appearance: .insetGrouped,
+    ///     showsSeparators: true,
+    ///     headerMode: .supplementary
+    /// )
+    /// collectionView.ss.setupPresenter(layoutKind: .list(config))
+    /// ```
+    public struct ListLayoutConfig {
+        /// The visual style of the list.
+        public enum Appearance: Int {
+            case plain = 0
+            case grouped = 1
+            case insetGrouped = 2
+            case sidebar = 3
+            case sidebarPlain = 4
+        }
+
+        /// Header display mode for list sections.
+        public enum HeaderMode: Int {
+            case none = 0
+            case supplementary = 1
+            case firstItemInSection = 2
+        }
+
+        /// Footer display mode for list sections.
+        public enum FooterMode: Int {
+            case none = 0
+            case supplementary = 1
+        }
+
+        /// The visual style of the list.
+        public var appearance: Appearance
+
+        /// Whether to show separators between items.
+        public var showsSeparators: Bool
+
+        /// How section headers are displayed.
+        public var headerMode: HeaderMode
+
+        /// How section footers are displayed.
+        public var footerMode: FooterMode
+
+        public init(
+            appearance: Appearance = .plain,
+            showsSeparators: Bool = true,
+            headerMode: HeaderMode = .none,
+            footerMode: FooterMode = .none
+        ) {
+            self.appearance = appearance
+            self.showsSeparators = showsSeparators
+            self.headerMode = headerMode
+            self.footerMode = footerMode
+        }
+
+        /// Creates a `UICollectionViewCompositionalLayout` with list configuration.
+        @available(iOS 14.0, *)
+        func makeLayout() -> UICollectionViewCompositionalLayout {
+            let uiAppearance: UICollectionLayoutListConfiguration.Appearance
+            switch appearance {
+            case .plain:        uiAppearance = .plain
+            case .grouped:      uiAppearance = .grouped
+            case .insetGrouped: uiAppearance = .insetGrouped
+            case .sidebar:      uiAppearance = .sidebar
+            case .sidebarPlain: uiAppearance = .sidebarPlain
+            }
+
+            var config = UICollectionLayoutListConfiguration(appearance: uiAppearance)
+            config.showsSeparators = showsSeparators
+
+            switch headerMode {
+            case .none:                 config.headerMode = .none
+            case .supplementary:        config.headerMode = .supplementary
+            case .firstItemInSection:   config.headerMode = .firstItemInSection
+            }
+
+            switch footerMode {
+            case .none:             config.footerMode = .none
+            case .supplementary:    config.footerMode = .supplementary
+            }
+
+            return UICollectionViewCompositionalLayout.list(using: config)
+        }
     }
 
     // MARK: - DiffableSupportCore

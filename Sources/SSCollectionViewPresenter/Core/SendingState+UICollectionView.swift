@@ -31,15 +31,19 @@ extension SendingState where Base: UICollectionView {
     /// Sets up the presenter for the collection view
     ///
     /// - Parameters:
+    ///   - layoutKind: Layout type (`.flow` or `.compositional`).
+    ///                 Default is `.flow`.
     ///   - actionHandler: Optional handler for user interactions.
     ///   - dataSourceMode: Data mode (`.traditional`, `.diffable`).
     ///                     Default is `.traditional`.
     public func setupPresenter(
+        layoutKind: SSCollectionViewPresenter.LayoutKind = .flow,
         actionHandler: ActionHandlingProvider? = nil,
         dataSourceMode: SSCollectionViewPresenter.DataSourceMode = .traditional
     ) {
         base.presenter = SSCollectionViewPresenter(
             collectionView: base,
+            layoutKind: layoutKind,
             actionHandler: actionHandler,
             dataSourceMode: dataSourceMode
         )

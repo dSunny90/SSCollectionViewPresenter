@@ -13,6 +13,9 @@ import UIKit
 /// `SSCollectionViewPresenter` bridges your view model with the collection view,
 /// automatically handling data source and delegate methods. It provides an
 /// easy way to bind cell and supplementary view data with minimal boilerplate.
+///
+/// - Note: Primarily designed for `UICollectionViewFlowLayout`, though
+///         `UICollectionViewCompositionalLayout` is also supported.
 public final class SSCollectionViewPresenter: NSObject {
     typealias SectionInfo = SSCollectionViewModel.SectionInfo
     typealias CellInfo = SSCollectionViewModel.CellInfo
@@ -22,6 +25,11 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Number of times items are duplicated for infinite scrolling.
     internal let duplicatedItemCount: Int = 3
+
+    // MARK: - Configuration
+
+    /// The layout type used by the collection view.
+    internal let layoutKind: LayoutKind
 
     /// The data source mode (diffable or classic).
     internal let dataSourceMode: DataSourceMode
@@ -175,15 +183,18 @@ public final class SSCollectionViewPresenter: NSObject {
 
     public init(
         collectionView: UICollectionView,
+        layoutKind: LayoutKind,
         actionHandler: ActionHandlingProvider? = nil,
         dataSourceMode: DataSourceMode = .traditional
     ) {
         self.collectionView = collectionView
+        self.layoutKind = layoutKind
         if let actionHandler = actionHandler {
             self.actionHandler = AnyActionHandlingProvider(actionHandler)
         }
         self.dataSourceMode = dataSourceMode
         super.init()
+        configureLayout()
         configureDataSource()
         collectionView.delegate = self
         collectionView.prefetchDataSource = self
@@ -222,6 +233,39 @@ public final class SSCollectionViewPresenter: NSObject {
     }
 
     // MARK: - Configuration
+
+    /// Configures the collection view's layout based on the specified layout kind.
+    ///
+    /// Sets up either a `UICollectionViewFlowLayout` or
+    /// `UICollectionViewCompositionalLayout` depending on the configuration.
+    private func configureLayout() {
+        guard let collectionView = collectionView else { return }
+        switch layoutKind {
+        case .flow:
+            if collectionView.collectionViewLayout as? UICollectionViewFlowLayout == nil {
+                let layout = UICollectionViewFlowLayout()
+                collectionView.setCollectionViewLayout(layout, animated: false)
+            }
+        case .compositional(let config):
+            if #available(iOS 13.0, *) {
+                if let config = config, collectionView.collectionViewLayout as? UICollectionViewCompositionalLayout == nil {
+                    let layout = config.makeLayout()
+                    collectionView.setCollectionViewLayout(layout, animated: false)
+                }
+            } else {
+                assertionFailure("Compositional is not supported below iOS 13.")
+            }
+        case .list(let config):
+            if #available(iOS 14.0, *) {
+                if let config = config, collectionView.collectionViewLayout as? UICollectionViewCompositionalLayout == nil {
+                    let layout = config.makeLayout()
+                    collectionView.setCollectionViewLayout(layout, animated: false)
+                }
+            } else {
+                assertionFailure("List layout is not supported below iOS 14.")
+            }
+        }
+    }
 
     /// Configures the data source for the collection view.
     ///

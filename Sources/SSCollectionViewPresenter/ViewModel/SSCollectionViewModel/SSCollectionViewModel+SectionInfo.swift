@@ -11,6 +11,25 @@ extension SSCollectionViewModel {
     // MARK: - SSCollectionViewModel.SectionInfo
     /// A view model structure used by `SSCollectionViewPresenter` to configure
     /// and render each section of the collection view.
+    ///
+    /// - Note:
+    ///
+    ///   The properties under **Layout Options** (e.g., `sectionInset`,
+    ///   `minimumLineSpacing`, `minimumInteritemSpacing`) are
+    ///   **only applied when using a `UICollectionViewFlowLayout`**.
+    ///
+    ///   For `itemSize`, `headerHeight`, and `footerHeight`, the actual sizes
+    ///   are determined by calling `static size(with:constrainedTo:)`
+    ///   on the corresponding types that conform to `Configurable`.
+    ///   These sizes are automatically calculated using the input model
+    ///   provided to each cell or supplementary view.
+    ///
+    ///   If a `UICollectionViewCompositionalLayout` is used, these options will
+    ///   **not be applied**, since compositional layouts define their own layout
+    ///   behavior and spacing independently.
+    ///
+    ///   When switching between layout types, ensure that layout-specific
+    ///   properties are configured accordingly.
     public struct SectionInfo: RandomAccessCollection, RangeReplaceableCollection, Hashable {
         public typealias ReusableViewInfo = SSCollectionViewModel.ReusableViewInfo
 
