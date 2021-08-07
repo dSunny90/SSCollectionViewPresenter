@@ -140,4 +140,20 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
 
         return view
     }
+
+    @available(iOS 14.0, *)
+    public func indexTitles(for collectionView: UICollectionView) -> [String]? {
+        guard let viewModel = viewModel, viewModel.isIndexTitlesEnabled else { return nil }
+        return cachedIndexTitles.isEmpty ? nil : cachedIndexTitles
+    }
+
+    @available(iOS 14.0, *)
+    public func collectionView(_ collectionView: UICollectionView,
+                               indexPathForIndexTitle title: String,
+                               at index: Int) -> IndexPath {
+        guard cachedIndexTitlePaths.indices.contains(index) else {
+            return IndexPath(item: 0, section: 0)
+        }
+        return cachedIndexTitlePaths[index]
+    }
 }

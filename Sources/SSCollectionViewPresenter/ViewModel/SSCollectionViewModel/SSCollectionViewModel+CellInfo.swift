@@ -19,6 +19,14 @@ extension SSCollectionViewModel {
         /// Whether the cell is currently selected
         public var isSelected: Bool = false
 
+        /// An optional index title string for this cell.
+        ///
+        /// When set, this value is used by `indexTitles(for:)` to build
+        /// the section index bar on the right side of the collection view.
+        /// Only effective when `SSCollectionViewModel.isIndexTitlesEnabled`
+        /// is `true` and requires iOS 14+.
+        public var indexTitle: String?
+
         /// A closure invoked when the bound cell sends an action.
         ///
         /// - Parameters:
