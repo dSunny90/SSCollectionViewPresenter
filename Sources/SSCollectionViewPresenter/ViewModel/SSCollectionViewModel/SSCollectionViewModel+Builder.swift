@@ -103,12 +103,14 @@ extension SSCollectionViewModel {
         public func cell<T, V>(
             _ model: T,
             cellType: V.Type,
+            indexTitle: String? = nil,
             actionClosure: CellActionClosure? = nil
         )
             where V: SSCollectionViewCellProtocol, V.Input == T
         {
             ensureSectionIfNeeded()
             let cell = CellInfo(BindingStore<T, V>(state: model))
+            cell.indexTitle = indexTitle
             cell.actionClosure = actionClosure
             currentItems.append(cell)
         }
@@ -117,6 +119,7 @@ extension SSCollectionViewModel {
         public func cells<S: Sequence, V>(
             _ models: S,
             cellType: V.Type,
+            indexTitle: ((S.Element) -> String?)? = nil,
             actionClosure: CellActionClosure? = nil
         )
             where V: SSCollectionViewCellProtocol, V.Input == S.Element
@@ -124,6 +127,7 @@ extension SSCollectionViewModel {
             ensureSectionIfNeeded()
             let items = models.map { model -> CellInfo in
                 let cell = CellInfo(BindingStore<S.Element, V>(state: model))
+                cell.indexTitle = indexTitle?(model)
                 cell.actionClosure = actionClosure
                 return cell
             }
@@ -159,9 +163,9 @@ extension SSCollectionViewModel {
         }
 
         /// Finalizes and returns the built model.
-        public func build(page: Int = 0, hasNext: Bool = false) -> SSCollectionViewModel {
+        public func build(page: Int = 0, hasNext: Bool = false, isIndexTitlesEnabled: Bool = false) -> SSCollectionViewModel {
             closeCurrentSectionIfNeeded()
-            return SSCollectionViewModel(sections: sections, page: page, hasNext: hasNext)
+            return SSCollectionViewModel(sections: sections, page: page, hasNext: hasNext, isIndexTitlesEnabled: isIndexTitlesEnabled)
         }
 
         // MARK: - Private helpers

@@ -66,6 +66,15 @@ public final class SSCollectionViewPresenter: NSObject {
                     diffableSupportCore?.updateSnapshot(with: viewModel)
                 }
             }
+
+            if viewModel.isIndexTitlesEnabled {
+                let map = viewModel.buildIndexTitleMap()
+                cachedIndexTitles = map.titles
+                cachedIndexTitlePaths = map.indexPaths
+            } else {
+                cachedIndexTitles.removeAll()
+                cachedIndexTitlePaths.removeAll()
+            }
         }
     }
 
@@ -94,6 +103,12 @@ public final class SSCollectionViewPresenter: NSObject {
 
     /// Closure called when prefetching should be cancelled.
     internal var cancelPrefetchBlock: (([CellInfo]) -> Void)?
+
+    // MARK: - Index Title Cache
+
+    /// Cached index title map, rebuilt whenever the view model changes.
+    internal var cachedIndexTitles: [String] = []
+    internal var cachedIndexTitlePaths: [IndexPath] = []
 
     // MARK: - Diffable Data Source Support
 
