@@ -410,6 +410,34 @@ extension SSCollectionViewPresenter {
         ) -> NSDiffableDataSourceSectionSnapshot<CellInfo>? {
             dataSource?.snapshot(for: section)
         }
+
+        // MARK: - iOS 15+ Reconfigure Items
+
+        /// Reconfigures cells for the given item identifiers without reloading.
+        ///
+        /// This updates cell content without recreating the cell,
+        /// providing better performance than `reloadItems`.
+        ///
+        /// - Parameter identifiers: The cell info identifiers to reconfigure.
+        @available(iOS 15.0, *)
+        internal func reconfigureItems(_ identifiers: [CellInfo]) {
+            guard var currentSnapshot = snapshot else { return }
+            currentSnapshot.reconfigureItems(identifiers)
+            self.snapshot = currentSnapshot
+            dataSource?.apply(currentSnapshot, animatingDifferences: false)
+        }
+
+        // MARK: - iOS 15+ Apply Snapshot Using Reload Data
+
+        /// Applies the current snapshot without diffing, using a full reload.
+        ///
+        /// Use this for initial data loads or large batch updates where
+        /// animation is not needed.
+        @available(iOS 15.0, *)
+        internal func applySnapshotUsingReloadData() {
+            guard let snapshot = snapshot else { return }
+            dataSource?.applySnapshotUsingReloadData(snapshot)
+        }
     }
 
     // MARK: - PagingConfiguration
