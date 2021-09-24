@@ -377,11 +377,6 @@ extension SSCollectionViewPresenter {
         /// Provider for trailing swipe actions on items.
         public var trailingSwipeActionsConfigurationProvider: ((IndexPath) -> UISwipeActionsConfiguration?)?
 
-        // MARK: - iOS 14.5+ Properties (stored as Any to avoid availability on stored properties)
-
-        private var _separatorConfiguration: Any?
-        private var _itemSeparatorHandler: Any?
-
         /// The default separator configuration for the list (iOS 14.5+).
         @available(iOS 14.5, *)
         public var separatorConfiguration: UIListSeparatorConfiguration {
@@ -406,6 +401,19 @@ extension SSCollectionViewPresenter {
             get { _itemSeparatorHandler as? (IndexPath, UIListSeparatorConfiguration) -> UIListSeparatorConfiguration }
             set { _itemSeparatorHandler = newValue }
         }
+
+        /// The top padding between the header and the first item in each section (iOS 15+).
+        ///
+        /// Set to `0` to remove the default padding that UIKit adds above the first item.
+        @available(iOS 15.0, *)
+        public var headerTopPadding: CGFloat? {
+            get { _headerTopPadding }
+            set { _headerTopPadding = newValue }
+        }
+
+        private var _separatorConfiguration: Any?
+        private var _itemSeparatorHandler: Any?
+        private var _headerTopPadding: CGFloat?
 
         public init(
             appearance: Appearance = .plain,
@@ -460,6 +468,12 @@ extension SSCollectionViewPresenter {
                 }
                 if let handler = _itemSeparatorHandler as? ((IndexPath, UIListSeparatorConfiguration) -> UIListSeparatorConfiguration) {
                     config.itemSeparatorHandler = handler
+                }
+            }
+
+            if #available(iOS 15.0, *) {
+                if let headerTopPadding = _headerTopPadding {
+                    config.headerTopPadding = headerTopPadding
                 }
             }
 
