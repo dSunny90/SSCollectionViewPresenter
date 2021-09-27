@@ -15,8 +15,8 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                willDisplay cell: UICollectionViewCell,
                                forItemAt indexPath: IndexPath) {
-        guard let items = viewModel?[indexPath.section].items else { return }
-        let item = items[indexPath.item % items.count]
+        guard let items = viewModel?[safe: indexPath.section]?.items,
+              let item = items[safe: indexPath.item % items.count] else { return }
 
         if isInfinitePage {
             let lowerBoundIndex = duplicatedItemCount / 2
@@ -32,8 +32,8 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                didEndDisplaying cell: UICollectionViewCell,
                                forItemAt indexPath: IndexPath) {
-        guard let items = viewModel?[indexPath.section].items else { return }
-        let item = items[indexPath.item % items.count]
+        guard let items = viewModel?[safe: indexPath.section]?.items,
+              let item = items[safe: indexPath.item % items.count] else { return }
 
         if isInfinitePage {
             let lowerBoundIndex = duplicatedItemCount / 2
@@ -50,7 +50,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                                willDisplaySupplementaryView view: UICollectionReusableView,
                                forElementKind elementKind: String,
                                at indexPath: IndexPath) {
-        guard let section = viewModel?[indexPath.section] else { return }
+        guard let section = viewModel?[safe: indexPath.section] else { return }
 
         let item: ReusableViewInfo?
 
@@ -70,7 +70,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                                didEndDisplayingSupplementaryView view: UICollectionReusableView,
                                forElementOfKind elementKind: String,
                                at indexPath: IndexPath) {
-        guard let section = viewModel?[indexPath.section] else { return }
+        guard let section = viewModel?[safe: indexPath.section] else { return }
 
         let item: ReusableViewInfo?
 
@@ -88,49 +88,45 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
 
     public func collectionView(_ collectionView: UICollectionView,
                                didHighlightItemAt indexPath: IndexPath) {
-        guard let items = viewModel?[indexPath.section].items else { return }
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return }
         let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
 
-        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
-        else { return }
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return }
 
-        let item = items[indexPath.item % items.count]
         item.didHighlight(to: cell)
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didUnhighlightItemAt indexPath: IndexPath) {
-        guard let items = viewModel?[indexPath.section].items else { return }
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return }
         let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
 
-        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
-        else { return }
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return }
 
-        let item = items[indexPath.item % items.count]
         item.didUnhighlight(to: cell)
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didSelectItemAt indexPath: IndexPath) {
-        guard let items = viewModel?[indexPath.section].items else { return }
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return }
         let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
 
-        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
-        else { return }
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return }
 
-        let item = items[indexPath.item % items.count]
         item.didSelect(to: cell)
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                didDeselectItemAt indexPath: IndexPath) {
-        guard let items = viewModel?[indexPath.section].items else { return }
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return }
         let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
 
-        guard let cell = collectionView.cellForItem(at: adjustedIndexPath)
-        else { return }
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return }
 
-        let item = items[indexPath.item % items.count]
         item.didDeselect(to: cell)
     }
 
@@ -148,10 +144,10 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
             }
         }
 
-        guard let items = viewModel?[indexPath.section].items
+        guard let items = viewModel?[safe: indexPath.section]?.items
         else { return defaultItemSize(layout: collectionViewLayout) }
 
-        guard let itemSize = items[indexPath.item % items.count].size(constrainedTo: collectionView.bounds.size)
+        guard let itemSize = items[safe: indexPath.item % items.count]?.size(constrainedTo: collectionView.bounds.size)
         else { return defaultItemSize(layout: collectionViewLayout) }
 
         return itemSize
@@ -160,7 +156,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                insetForSectionAt section: Int) -> UIEdgeInsets {
-        guard let sectionInset = viewModel?[section].sectionInset
+        guard let sectionInset = viewModel?[safe: section]?.sectionInset
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.sectionInset
@@ -175,7 +171,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                minimumLineSpacingForSectionAt section: Int) -> CGFloat {
-        guard let lineSpacing = viewModel?[section].minimumLineSpacing
+        guard let lineSpacing = viewModel?[safe: section]?.minimumLineSpacing
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.minimumLineSpacing
@@ -190,7 +186,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
-        guard let itemSpacing = viewModel?[section].minimumInteritemSpacing
+        guard let itemSpacing = viewModel?[safe: section]?.minimumInteritemSpacing
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.minimumInteritemSpacing
@@ -205,7 +201,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                referenceSizeForHeaderInSection section: Int) -> CGSize {
-        guard let viewSize = viewModel?[section].header?.size(constrainedTo: collectionView.bounds.size)
+        guard let viewSize = viewModel?[safe: section]?.header?.size(constrainedTo: collectionView.bounds.size)
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.headerReferenceSize
@@ -220,7 +216,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                referenceSizeForFooterInSection section: Int) -> CGSize {
-        guard let viewSize = viewModel?[section].footer?.size(constrainedTo: collectionView.bounds.size)
+        guard let viewSize = viewModel?[safe: section]?.footer?.size(constrainedTo: collectionView.bounds.size)
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.footerReferenceSize
