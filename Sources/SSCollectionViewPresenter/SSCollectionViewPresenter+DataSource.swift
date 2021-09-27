@@ -47,7 +47,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
 
     public func collectionView(_ collectionView: UICollectionView,
                                numberOfItemsInSection section: Int) -> Int {
-        guard let sectionInfo = viewModel?[section],
+        guard let sectionInfo = viewModel?[safe: section],
               !sectionInfo.isCollapsed else { return 0 }
 
         let itemCount: Int
@@ -64,6 +64,10 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         guard let viewModel = viewModel
         else { return collectionView.dequeueDefaultCell(for: indexPath) }
 
+        guard let items = viewModel[safe: indexPath.section]?.items,
+              let item = items[safe: indexPath.item % items.count]
+        else { return collectionView.dequeueDefaultCell(for: indexPath) }
+
         defer {
             if shouldLoadNextPage() {
                 isLoadingNextPage = true
@@ -71,8 +75,6 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
             }
         }
 
-        let items = viewModel[indexPath.section].items
-        let item = viewModel[indexPath.section].items[indexPath.item % items.count]
         let cell = collectionView.dequeueReusableCell(
             withReuseIdentifier: String(describing: item.binderType),
             for: indexPath
@@ -101,7 +103,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
     public func collectionView(_ collectionView: UICollectionView,
                                viewForSupplementaryElementOfKind kind: String,
                                at indexPath: IndexPath) -> UICollectionReusableView {
-        guard let section = viewModel?[indexPath.section]
+        guard let section = viewModel?[safe: indexPath.section]
         else { return collectionView.dequeueDefaultSupplementaryView(ofKind: kind, for: indexPath) }
 
         let item: ReusableViewInfo?
