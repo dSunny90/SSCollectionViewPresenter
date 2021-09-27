@@ -270,12 +270,8 @@ public final class SSCollectionViewPresenter: NSObject {
     ///   - indexPath: The index path of the cell to update.
     internal func reconfigureItem<T>(_ newState: T, at indexPath: IndexPath) {
         guard let collectionView = collectionView,
-              let viewModel = viewModel,
-              indexPath.section < viewModel.count,
-              indexPath.item < viewModel[indexPath.section].count else { return }
-
-        let item = viewModel[indexPath.section][indexPath.item]
-        guard item.state is T else { return }
+              let item = viewModel?[safe: indexPath.section]?[safe: indexPath.item],
+              item.state is T else { return }
 
         if let cell = collectionView.cellForItem(at: indexPath) {
             item.state = newState
@@ -295,10 +291,7 @@ public final class SSCollectionViewPresenter: NSObject {
     @available(iOS 9.0, *)
     internal func reconfigureHeader<T>(_ newState: T, at section: Int) {
         guard let collectionView = collectionView,
-              let viewModel = viewModel,
-              section < viewModel.count else { return }
-
-        guard let header = viewModel[section].header,
+              let header = viewModel?[safe: section]?.header,
               header.state is T else { return }
 
         if let view = collectionView.supplementaryView(
@@ -322,10 +315,7 @@ public final class SSCollectionViewPresenter: NSObject {
     @available(iOS 9.0, *)
     internal func reconfigureFooter<T>(_ newState: T, at section: Int) {
         guard let collectionView = collectionView,
-              let viewModel = viewModel,
-              section < viewModel.count else { return }
-
-        guard let footer = viewModel[section].footer,
+              let footer = viewModel?[safe: section]?.footer,
               footer.state is T else { return }
 
         if let view = collectionView.supplementaryView(

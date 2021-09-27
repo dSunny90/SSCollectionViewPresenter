@@ -79,13 +79,11 @@ extension SSCollectionViewPresenter {
             visibleItemsInvalidationHandlerProvider: @escaping (Int) -> VisibleItemsInvalidationHandler? = { _ in nil }
         ) -> UICollectionViewCompositionalLayout {
             return UICollectionViewCompositionalLayout { idx, environment in
-                guard idx < self.sections.count,
-                      idx < viewModelProvider()?.count ?? 0
+                guard let config = self.sections[safe: idx],
+                      let sectionInfo = viewModelProvider()?[safe: idx]
                 else { return nil }
 
-                let config = self.sections[idx]
                 let containerSize = environment.container.contentSize
-                let sectionInfo = viewModelProvider()?[idx]
                 let invalidationHandler = visibleItemsInvalidationHandlerProvider(idx)
 
                 let group: NSCollectionLayoutGroup
@@ -102,8 +100,7 @@ extension SSCollectionViewPresenter {
 
                 case .dynamic:
                     // dynamic -- each cell provides its own size.
-                    let cellInfos = sectionInfo?.items ?? []
-                    let cellSizes: [CGSize?] = cellInfos.map {
+                    let cellSizes: [CGSize?] = sectionInfo.items.map {
                         $0.size(constrainedTo: containerSize)
                     }
 
