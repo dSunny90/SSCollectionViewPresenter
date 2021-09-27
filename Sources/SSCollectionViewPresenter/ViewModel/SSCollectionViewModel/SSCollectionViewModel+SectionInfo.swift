@@ -83,8 +83,8 @@ extension SSCollectionViewModel {
 
         /// Get a cell info at the specified index.
         public func cellInfo(at index: Int) -> CellInfo? {
-            guard items.indices.contains(index) else { return nil }
-            return items[index]
+            guard let cellInfo = items[safe: index] else { return nil }
+            return cellInfo
         }
 
         /// Get a header info at the specified index.

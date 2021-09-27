@@ -292,9 +292,10 @@ extension SSCollectionViewPresenter {
             }
 
             aDataSource.supplementaryViewProvider = { cv, kind, indexPath in
-                guard let snapshot = self.snapshot else { return cv.dequeueDefaultSupplementaryView(ofKind: kind, for: indexPath) }
+                guard let snapshot = self.snapshot,
+                      let section = snapshot.sectionIdentifiers[safe: indexPath.section]
+                else { return cv.dequeueDefaultSupplementaryView(ofKind: kind, for: indexPath) }
 
-                let section = snapshot.sectionIdentifiers[indexPath.section]
                 let item: ReusableViewInfo?
 
                 switch kind {

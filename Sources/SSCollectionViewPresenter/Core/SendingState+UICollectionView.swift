@@ -338,10 +338,10 @@ extension SendingState where Base: UICollectionView {
     @available(iOS 15.0, *)
     public func reconfigureItems(at indexPaths: [IndexPath]) {
         guard let viewModel = base.presenter?.viewModel else { return }
-        let items: [CellInfo] = indexPaths.compactMap {
-            guard $0.section < viewModel.count,
-                  $0.item < viewModel[$0.section].count else { return nil }
-            return viewModel[$0.section][$0.item]
+        var items = [CellInfo]()
+        for indexPath in indexPaths {
+            guard let item = viewModel[safe: indexPath.section]?[safe: indexPath.item] else { continue }
+            items.append(item)
         }
         base.presenter?.reconfigureItems(items)
     }
@@ -1073,11 +1073,9 @@ extension SendingState where Base: UICollectionView {
     /// - Parameter indexPath: The index path of the item.
     /// - Returns: The `CellInfo` at the index path, or `nil`.
     public func item(at indexPath: IndexPath) -> CellInfo? {
-        guard let viewModel = base.presenter?.viewModel,
-              indexPath.section < viewModel.count,
-              indexPath.item < viewModel[indexPath.section].count
+        guard let item = base.presenter?.viewModel?[safe: indexPath.section]?[safe: indexPath.item]
         else { return nil }
-        return viewModel[indexPath.section][indexPath.item]
+        return item
     }
 
     /// Returns the item at the specified row in the first section matching
@@ -1090,8 +1088,8 @@ extension SendingState where Base: UICollectionView {
     public func item(atRow row: Int, sectionIdentifier identifier: String) -> CellInfo? {
         guard let viewModel = base.presenter?.viewModel,
               let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
-              row < viewModel[sectionIndex].count
+              let item = viewModel[sectionIndex][safe: row]
         else { return nil }
-        return viewModel[sectionIndex][row]
+        return item
     }
 }
