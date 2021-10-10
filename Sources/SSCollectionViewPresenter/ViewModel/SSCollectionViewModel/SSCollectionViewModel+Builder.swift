@@ -45,6 +45,7 @@ extension SSCollectionViewModel {
         private var currentSectionInset: UIEdgeInsets?
         private var currentMinimumLineSpacing: CGFloat?
         private var currentMinimumInteritemSpacing: CGFloat?
+        private var currentGridColumnCount: Int?
         private var currentSectionID: String = UUID().uuidString
         private var hasOpenSection: Bool = false
 
@@ -63,6 +64,7 @@ extension SSCollectionViewModel {
             currentSectionInset = nil
             currentMinimumLineSpacing = nil
             currentMinimumInteritemSpacing = nil
+            currentGridColumnCount = nil
             hasOpenSection = true
 
             if let content = content {
@@ -93,6 +95,14 @@ extension SSCollectionViewModel {
         public func minimumInteritemSpacing(_ spacing: CGFloat) -> Self {
             ensureSectionIfNeeded()
             currentMinimumInteritemSpacing = spacing
+            return self
+        }
+
+        /// Sets the grid column count for the currently open section.
+        @discardableResult
+        public func gridColumnCount(_ count: Int) -> Self {
+            ensureSectionIfNeeded()
+            currentGridColumnCount = count
             return self
         }
 
@@ -157,6 +167,7 @@ extension SSCollectionViewModel {
             section.sectionInset = currentSectionInset
             section.minimumLineSpacing = currentMinimumLineSpacing
             section.minimumInteritemSpacing = currentMinimumInteritemSpacing
+            section.gridColumnCount = currentGridColumnCount
             sections.append(section)
             // Reset working state
             currentItems.removeAll(keepingCapacity: true)

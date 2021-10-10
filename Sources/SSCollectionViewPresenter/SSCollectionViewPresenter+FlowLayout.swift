@@ -135,33 +135,47 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                sizeForItemAt indexPath: IndexPath) -> CGSize {
+        guard let sectionInfo = viewModel?[safe: indexPath.section]
+        else { return defaultItemSize(layout: collectionViewLayout) }
 
-        func defaultItemSize(layout collectionViewLayout: UICollectionViewLayout) -> CGSize {
-            if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
-                return flowLayout.itemSize
-            } else {
-                return .zero
-            }
+        guard let item = sectionInfo.items[safe: indexPath.item % sectionInfo.items.count]
+        else { return defaultItemSize(layout: collectionViewLayout) }
+
+        if sectionInfo.gridColumnCount != nil {
+            let cellSize = gridItemSize(
+                collectionView,
+                layout: collectionViewLayout,
+                sectionInfo: sectionInfo,
+                cellInfo: item
+            ) ?? defaultItemSize(layout: collectionViewLayout)
+            return cellSize
+        } else {
+            let cellSize = item.size(
+                constrainedTo: collectionView.bounds.size
+            ) ?? defaultItemSize(layout: collectionViewLayout)
+            return cellSize
         }
-
-        guard let items = viewModel?[safe: indexPath.section]?.items
-        else { return defaultItemSize(layout: collectionViewLayout) }
-
-        guard let itemSize = items[safe: indexPath.item % items.count]?.size(constrainedTo: collectionView.bounds.size)
-        else { return defaultItemSize(layout: collectionViewLayout) }
-
-        return itemSize
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                insetForSectionAt section: Int) -> UIEdgeInsets {
-        guard let sectionInset = viewModel?[safe: section]?.sectionInset
-        else {
-            if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
-                return flowLayout.sectionInset
+        guard let sectionInfo = viewModel?[safe: section]
+        else { return defaultSectionInset(layout: collectionViewLayout) }
+
+        let sectionInset = sectionInfo.sectionInset ?? defaultSectionInset(layout: collectionViewLayout)
+
+        if let gridColumns = sectionInfo.gridColumnCount, gridColumns == 0 {
+            if (collectionViewLayout as? UICollectionViewFlowLayout)?.scrollDirection == .horizontal {
+                return UIEdgeInsets(top: 0,
+                                    left: sectionInset.left,
+                                    bottom: 0,
+                                    right: sectionInset.bottom)
             } else {
-                return .zero
+                return UIEdgeInsets(top: sectionInset.top,
+                                    left: 0,
+                                    bottom: sectionInset.bottom,
+                                    right: 0)
             }
         }
 
@@ -172,13 +186,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                                layout collectionViewLayout: UICollectionViewLayout,
                                minimumLineSpacingForSectionAt section: Int) -> CGFloat {
         guard let lineSpacing = viewModel?[safe: section]?.minimumLineSpacing
-        else {
-            if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
-                return flowLayout.minimumLineSpacing
-            } else {
-                return 0
-            }
-        }
+        else { return defaultMinimumLineSpacing(layout: collectionViewLayout) }
 
         return lineSpacing
     }
@@ -187,13 +195,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                                layout collectionViewLayout: UICollectionViewLayout,
                                minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
         guard let itemSpacing = viewModel?[safe: section]?.minimumInteritemSpacing
-        else {
-            if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
-                return flowLayout.minimumInteritemSpacing
-            } else {
-                return 0
-            }
-        }
+        else { return defaultMinimumInteritemSpacing(layout: collectionViewLayout) }
 
         return itemSpacing
     }
@@ -226,5 +228,94 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
         }
 
         return viewSize
+    }
+
+    func defaultItemSize(layout collectionViewLayout: UICollectionViewLayout) -> CGSize {
+        if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
+            return flowLayout.itemSize
+        } else {
+            return .zero
+        }
+    }
+
+    private func defaultSectionInset(
+        layout collectionViewLayout: UICollectionViewLayout
+    ) -> UIEdgeInsets {
+        if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
+            return flowLayout.sectionInset
+        } else {
+            return .zero
+        }
+    }
+
+    private func defaultMinimumLineSpacing(
+        layout collectionViewLayout: UICollectionViewLayout
+    ) -> CGFloat {
+        if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
+            return flowLayout.minimumLineSpacing
+        } else {
+            return 0
+        }
+    }
+
+    private func defaultMinimumInteritemSpacing(
+        layout collectionViewLayout: UICollectionViewLayout
+    ) -> CGFloat {
+        if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
+            return flowLayout.minimumInteritemSpacing
+        } else {
+            return 0
+        }
+    }
+
+    private func gridItemSize(
+        _ collectionView: UICollectionView,
+        layout collectionViewLayout: UICollectionViewLayout,
+        sectionInfo: SectionInfo,
+        cellInfo: CellInfo
+    ) -> CGSize? {
+        guard let gridColumns = sectionInfo.gridColumnCount else { return nil }
+
+        let scrollDirection = (collectionViewLayout as? UICollectionViewFlowLayout)?.scrollDirection ?? .vertical
+
+        if gridColumns > 0 {
+            let inset = sectionInfo.sectionInset ?? defaultSectionInset(layout: collectionViewLayout)
+            let spacing = sectionInfo.minimumInteritemSpacing ?? defaultMinimumInteritemSpacing(layout: collectionViewLayout)
+
+            if scrollDirection == .horizontal {
+                let margins = inset.top + inset.bottom + spacing * (CGFloat(gridColumns) - 1)
+                let itemHeight = (collectionView.bounds.size.height - margins) / CGFloat(gridColumns)
+                let itemWidth = cellInfo.size(
+                    constrainedTo: CGSize(
+                        width: collectionView.bounds.size.width,
+                        height: itemHeight
+                    )
+                )?.width ?? defaultItemSize(layout: collectionViewLayout).width
+                return CGSize(width: itemWidth, height: itemHeight)
+            } else {
+                let margins = inset.left + inset.right + spacing * (CGFloat(gridColumns) - 1)
+                let itemWidth = (collectionView.bounds.size.width - margins) / CGFloat(gridColumns)
+                let itemHeight = cellInfo.size(
+                    constrainedTo: CGSize(
+                        width: itemWidth,
+                        height: collectionView.bounds.size.height
+                    )
+                )?.height ?? defaultItemSize(layout: collectionViewLayout).height
+                return CGSize(width: itemWidth, height: itemHeight)
+            }
+        } else if gridColumns == 0 {
+            if scrollDirection == .horizontal {
+                let itemWidth = cellInfo.size(
+                    constrainedTo: collectionView.bounds.size
+                )?.width ?? defaultItemSize(layout: collectionViewLayout).width
+                return CGSize(width: itemWidth, height: collectionView.bounds.size.height)
+            } else {
+                let itemHeight = cellInfo.size(
+                    constrainedTo: collectionView.bounds.size
+                )?.height ?? defaultItemSize(layout: collectionViewLayout).height
+                return CGSize(width: collectionView.bounds.size.width, height: itemHeight)
+            }
+        }
+        return nil
     }
 }
