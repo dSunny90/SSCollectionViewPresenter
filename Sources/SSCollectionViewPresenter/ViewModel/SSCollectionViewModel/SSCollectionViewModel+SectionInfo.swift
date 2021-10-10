@@ -63,6 +63,15 @@ extension SSCollectionViewModel {
         public var minimumLineSpacing: CGFloat?
         public var minimumInteritemSpacing: CGFloat?
 
+        /// The number of columns to use when laying out items in a grid.
+        ///
+        /// When set to `0`, section insets are ignored and each item fills
+        /// the full width of the collection view's bounds.
+        /// When set to a positive value, items are distributed evenly across
+        /// the row, with their width derived from the available content width
+        /// after applying section insets and inter-item spacing.
+        public var gridColumnCount: Int?
+
         // MARK: - Init.
 
         public init(
