@@ -283,7 +283,26 @@ extension SSCollectionViewPresenter {
                 section.boundarySupplementaryItems = supplementaries
             }
 
-            section.supplementariesFollowContentInsets = config.supplementariesFollowContentInsets
+            // iOS 16+: supplementaryContentInsetsReference replaces
+            // the deprecated supplementariesFollowContentInsets.
+            if #available(iOS 16.0, *) {
+                switch config.contentInsetsReference {
+                case .automatic:
+                    section.supplementaryContentInsetsReference = .automatic
+                case .none:
+                    section.supplementaryContentInsetsReference = .none
+                case .safeArea:
+                    section.supplementaryContentInsetsReference = .safeArea
+                case .layoutMargins:
+                    section.supplementaryContentInsetsReference = .layoutMargins
+                }
+            } else {
+                // Fallback: map .none -> false, everything else -> true
+                // (best approximation on iOS 13–15).
+                section.supplementariesFollowContentInsets =
+                    config._supplementariesFollowContentInsets
+                    ?? (config.contentInsetsReference != .none)
+            }
 
             // Per-section scroll-driven invalidation (animations, parallax, ...)
             if let handler = visibleItemsInvalidationHandler {

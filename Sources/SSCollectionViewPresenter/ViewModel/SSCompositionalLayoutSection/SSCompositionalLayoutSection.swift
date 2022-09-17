@@ -107,9 +107,48 @@ public struct SSCompositionalLayoutSection {
 
     /// When `true`, header/footer boundary supplementary items respect
     /// the section's `contentInsets`.
-    /// Maps to `NSCollectionLayoutSection.supplementariesFollowContentInsets`.
-    /// Defaults to `true` (matching UIKit's default).
-    public var supplementariesFollowContentInsets: Bool
+    ///
+    /// - Note: On iOS 16+, UIKit deprecated
+    ///   `supplementariesFollowContentInsets` in favor of
+    ///   `supplementaryContentInsetsReference`. Use
+    ///   ``contentInsetsReference`` instead.
+    @available(iOS, introduced: 13.0, deprecated: 16.0,
+               message: "Use contentInsetsReference instead")
+    public var supplementariesFollowContentInsets: Bool {
+        get { _supplementariesFollowContentInsets ?? true }
+        set { _supplementariesFollowContentInsets = newValue }
+    }
+    internal var _supplementariesFollowContentInsets: Bool?
+
+    /// Controls how supplementary views (headers/footers) resolve their
+    /// content insets on iOS 16+.
+    ///
+    /// Maps to
+    /// `NSCollectionLayoutSection.supplementaryContentInsetsReference`.
+    ///
+    /// | Value | Behavior |
+    /// |-------|----------|
+    /// | `.automatic` | System decides (default). |
+    /// | `.none` | No insets applied. |
+    /// | `.safeArea` | Insets follow safe area. |
+    /// | `.layoutMargins` | Insets follow layout margins. |
+    ///
+    /// On iOS 13–15 this value is ignored and
+    /// ``supplementariesFollowContentInsets`` is used instead.
+    public var contentInsetsReference: ContentInsetsReference
+
+    /// Mirrors `UIContentInsetsReference` without requiring iOS 16+
+    /// availability on the stored property.
+    public enum ContentInsetsReference: Int {
+        /// System default behavior.
+        case automatic = 0
+        /// Supplementaries ignore content insets entirely.
+        case none = 1
+        /// Supplementaries follow the safe area.
+        case safeArea = 2
+        /// Supplementaries follow layout margins.
+        case layoutMargins = 3
+    }
 
     // MARK: - Init
 
@@ -122,8 +161,8 @@ public struct SSCompositionalLayoutSection {
     ///   - itemSpacing: Spacing between items within a group.
     ///   - lineSpacing: Spacing between groups within the section.
     ///   - sectionInset: Section content insets.
-    ///   - supplementariesFollowContentInsets: Whether headers/footers
-    ///     respect `sectionInset`. Defaults to `true`.
+    ///   - contentInsetsReference: How supplementary views resolve
+    ///     insets (iOS 16+). Defaults to `.automatic`.
     public init(
         direction: UICollectionView.ScrollDirection,
         itemSize: ItemSizeMode = .dynamic,
@@ -131,7 +170,7 @@ public struct SSCompositionalLayoutSection {
         itemSpacing: CGFloat? = nil,
         lineSpacing: CGFloat? = nil,
         sectionInset: UIEdgeInsets? = nil,
-        supplementariesFollowContentInsets: Bool = true
+        contentInsetsReference: ContentInsetsReference = .automatic
     ) {
         self.direction = direction
         self.itemSize = itemSize
@@ -139,6 +178,6 @@ public struct SSCompositionalLayoutSection {
         self.itemSpacing = itemSpacing
         self.lineSpacing = lineSpacing
         self.sectionInset = sectionInset
-        self.supplementariesFollowContentInsets = supplementariesFollowContentInsets
+        self.contentInsetsReference = contentInsetsReference
     }
 }
