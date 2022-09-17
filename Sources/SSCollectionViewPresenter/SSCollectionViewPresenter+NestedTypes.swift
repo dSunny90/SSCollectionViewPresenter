@@ -70,11 +70,19 @@ extension SSCollectionViewPresenter {
 
                 let group: NSCollectionLayoutGroup
                 if config.direction == .horizontal {
-                    group = NSCollectionLayoutGroup.horizontal(
-                        layoutSize: groupSize,
-                        subitem: item,
-                        count: config.columns
-                    )
+                    if #available(iOS 16.0, *) {
+                        group = NSCollectionLayoutGroup.horizontal(
+                            layoutSize: groupSize,
+                            repeatingSubitem: item,
+                            count: config.columns
+                        )
+                    } else {
+                        group = NSCollectionLayoutGroup.horizontal(
+                            layoutSize: groupSize,
+                            subitem: item,
+                            count: config.columns
+                        )
+                    }
 
                     let section = NSCollectionLayoutSection(group: group)
                     section.orthogonalScrollingBehavior = .init(
@@ -82,11 +90,19 @@ extension SSCollectionViewPresenter {
                     ) ?? .none
                     return section
                 } else {
-                    group = NSCollectionLayoutGroup.vertical(
-                        layoutSize: groupSize,
-                        subitem: item,
-                        count: config.columns
-                    )
+                    if #available(iOS 16.0, *) {
+                        group = NSCollectionLayoutGroup.vertical(
+                            layoutSize: groupSize,
+                            repeatingSubitem: item,
+                            count: config.columns
+                        )
+                    } else {
+                        group = NSCollectionLayoutGroup.vertical(
+                            layoutSize: groupSize,
+                            subitem: item,
+                            count: config.columns
+                        )
+                    }
                     return NSCollectionLayoutSection(group: group)
                 }
             }
