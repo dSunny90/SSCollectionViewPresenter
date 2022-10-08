@@ -9,7 +9,6 @@ import UIKit
 
 // MARK: - UICollectionViewDataSourcePrefetching
 
-@available(iOS 10.0, *)
 extension SSCollectionViewPresenter: UICollectionViewDataSourcePrefetching {
     public func collectionView(
         _ collectionView: UICollectionView,

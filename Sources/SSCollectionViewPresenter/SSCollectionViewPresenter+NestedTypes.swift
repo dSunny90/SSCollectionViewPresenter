@@ -550,7 +550,7 @@ extension SSCollectionViewPresenter {
         ///    to dequeue the cell.
         /// 2. Calls `CellInfo.apply(to:)` to bind data to the cell.
         /// 3. Attaches `actionHandler` if the cell conforms to
-        ///    `EventSendingProvider`.
+        ///    `EventForwardingProvider`.
         /// 4. Evaluates `shouldLoadNextPage()` to trigger pagination
         ///    when needed.
         ///
@@ -593,7 +593,7 @@ extension SSCollectionViewPresenter {
                 }
 
                 if let actionHandler = actionHandler,
-                   let aCell = cell as? (UIView & EventSendingProvider)
+                   let aCell = cell as? (UIView & EventForwardingProvider)
                 {
                     actionHandler.attach(to: aCell)
                 }
@@ -632,7 +632,7 @@ extension SSCollectionViewPresenter {
                 }
 
                 if let actionHandler = actionHandler,
-                   let aView = view as? (UIView & EventSendingProvider)
+                   let aView = view as? (UIView & EventForwardingProvider)
                 {
                     actionHandler.attach(to: aView)
                 }
