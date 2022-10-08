@@ -92,7 +92,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         }
 
         if let actionHandler = actionHandler,
-           let aCell = cell as? (UIView & EventSendingProvider)
+           let aCell = cell as? (UIView & EventForwardingProvider)
         {
             actionHandler.attach(to: aCell)
         }
@@ -135,7 +135,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         }
 
         if let actionHandler = actionHandler,
-           let aView = view as? (UIView & EventSendingProvider)
+           let aView = view as? (UIView & EventForwardingProvider)
         {
             actionHandler.attach(to: aView)
         }

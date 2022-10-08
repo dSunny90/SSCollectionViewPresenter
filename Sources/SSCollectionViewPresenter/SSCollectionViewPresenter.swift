@@ -184,7 +184,7 @@ public final class SSCollectionViewPresenter: NSObject {
     public init(
         collectionView: UICollectionView,
         layoutKind: LayoutKind,
-        actionHandler: ActionHandlingProvider? = nil,
+        actionHandler: (any ActionHandlingProvider)? = nil,
         dataSourceMode: DataSourceMode = .traditional
     ) {
         self.collectionView = collectionView
@@ -263,7 +263,6 @@ public final class SSCollectionViewPresenter: NSObject {
     /// - Parameters:
     ///   - newState: The new state to apply to the header view.
     ///   - section: The index of the section whose header to update.
-    @available(iOS 9.0, *)
     internal func reconfigureHeader<T>(_ newState: T, at section: Int) {
         guard let collectionView = collectionView,
               let header = viewModel?[safe: section]?.header,
@@ -287,7 +286,6 @@ public final class SSCollectionViewPresenter: NSObject {
     /// - Parameters:
     ///   - newState: The new state to apply to the footer view.
     ///   - section: The index of the section whose footer to update.
-    @available(iOS 9.0, *)
     internal func reconfigureFooter<T>(_ newState: T, at section: Int) {
         guard let collectionView = collectionView,
               let footer = viewModel?[safe: section]?.footer,
