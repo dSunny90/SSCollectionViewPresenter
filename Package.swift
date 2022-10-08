@@ -1,11 +1,11 @@
-// swift-tools-version:5.0
+// swift-tools-version: 5.7
 
 import PackageDescription
 
 let package = Package(
     name: "SSCollectionViewPresenter",
     platforms: [
-        .iOS(.v8)
+        .iOS(.v12)
     ],
     products: [
         .library(
@@ -16,7 +16,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/dSunny90/SendingState.git",
-            from: "0.1.0"
+            from: "0.2.0"
         )
     ],
     targets: [

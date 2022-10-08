@@ -2,7 +2,7 @@
 
 🎞️ Super Simple abstraction layer for building `UICollectionView`-based UIs with minimal boilerplate.
 
-[![SwiftPM compatible](https://img.shields.io/badge/SwiftPM-compatible-brightgreen.svg)](https://swift.org/package-manager/) ![Swift](https://img.shields.io/badge/Swift-5.0-orange.svg) ![Platform](https://img.shields.io/badge/platform-iOS%208-brightgreen) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![SwiftPM compatible](https://img.shields.io/badge/SwiftPM-compatible-brightgreen.svg)](https://swift.org/package-manager/) ![Swift](https://img.shields.io/badge/Swift-5.7-orange.svg) ![Platform](https://img.shields.io/badge/platform-iOS%2012-brightgreen) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Motivation
 
@@ -31,7 +31,7 @@ Built with a pragmatic take on Apple's MVC architecture:
 - **Infinite scrolling for banners** — Smooth circular scroll behavior.
 - **Auto-rolling support** — Automatically scrolls banners with a customizable interval.
 - **Page lifecycle callbacks** — Observe and respond to page-level events like `onPageWillAppear`, `onPageDidAppear`, etc.
-- **Re-exported dependency** — `SendingState` is re-exported, so you can use `Configurable`, `EventSendingProvider`, and other types without an extra import.
+- **Re-exported dependency** — `SendingState` is re-exported, so you can use `Configurable`, `EventForwardingProvider`, and other types without an extra import.
 
 ## How It Works
 
@@ -125,7 +125,7 @@ final class HomeViewController: UIViewController {
 **1. Sending events from cells**
 
 If a cell needs to propagate internal events (e.g. button taps) to its parent, refer to the `eventForwarder` usage in [`SendingState`](https://github.com/dSunny90/SendingState).
-Cells can conform to `EventSendingProvider` to expose interactions like `touchUpInside`, `valueChanged`, or gesture recognizers.
+Cells can conform to `EventForwardingProvider` to expose interactions like `touchUpInside`, `valueChanged`, or gesture recognizers.
 
 **2. Handling delegate events inside cells**
 
@@ -403,6 +403,6 @@ https://github.com/dSunny90/SSCollectionViewPresenter
 ### Using Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/dSunny90/SSCollectionViewPresenter", from: "0.1.1")
+    .package(url: "https://github.com/dSunny90/SSCollectionViewPresenter", from: "0.2.0")
 ]
 ```

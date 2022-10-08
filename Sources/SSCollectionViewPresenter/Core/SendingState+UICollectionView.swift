@@ -38,7 +38,7 @@ extension SendingState where Base: UICollectionView {
     ///                     Default is `.traditional`.
     public func setupPresenter(
         layoutKind: SSCollectionViewPresenter.LayoutKind = .flow,
-        actionHandler: ActionHandlingProvider? = nil,
+        actionHandler: (any ActionHandlingProvider)? = nil,
         dataSourceMode: SSCollectionViewPresenter.DataSourceMode = .traditional
     ) {
         base.presenter = SSCollectionViewPresenter(
@@ -253,7 +253,6 @@ extension SendingState where Base: UICollectionView {
     ///
     /// - Parameter block: A closure that receives the `CellInfo` for items
     ///                    to prefetch.
-    @available(iOS 10.0, *)
     public func onPrefetch(_ block: @escaping ([CellInfo]) -> Void) {
         base.presenter?.prefetchBlock = block
     }
@@ -262,7 +261,6 @@ extension SendingState where Base: UICollectionView {
     ///
     /// - Parameter block: A closure that receives the `CellInfo` for items
     ///                    whose prefetching should be cancelled.
-    @available(iOS 10.0, *)
     public func onCancelPrefetch(_ block: @escaping ([CellInfo]) -> Void) {
         base.presenter?.cancelPrefetchBlock = block
     }

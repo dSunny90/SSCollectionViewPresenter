@@ -184,7 +184,7 @@ public final class SSCollectionViewPresenter: NSObject {
     public init(
         collectionView: UICollectionView,
         layoutKind: LayoutKind,
-        actionHandler: ActionHandlingProvider? = nil,
+        actionHandler: (any ActionHandlingProvider)? = nil,
         dataSourceMode: DataSourceMode = .traditional
     ) {
         self.collectionView = collectionView
