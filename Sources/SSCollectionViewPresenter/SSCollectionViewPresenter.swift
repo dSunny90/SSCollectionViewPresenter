@@ -83,6 +83,13 @@ public final class SSCollectionViewPresenter: NSObject {
     /// The action handler responsible for dispatching actions.
     internal var actionHandler: AnyActionHandlingProvider?
 
+    // MARK: - Primary Action (iOS 16+)
+
+    /// Asked on each primary-action tap. Returns a non-nil closure to run
+    /// when the action should proceed, or `nil` to veto the action for that
+    /// cell. `nil` (no block set) vetoes by default.
+    internal var performPrimaryActionBlock: ((IndexPath, CellInfo) -> (() -> Void)?)?
+
     // MARK: - Pagination
 
     /// Closure called when the next page of data should be loaded.
