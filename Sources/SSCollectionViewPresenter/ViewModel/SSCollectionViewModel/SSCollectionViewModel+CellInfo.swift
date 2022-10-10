@@ -36,6 +36,9 @@ extension SSCollectionViewModel {
         ///   - input: An optional value passed by the caller for the action.
         public var actionClosure: ((IndexPath, UICollectionViewCell, String, Any?) -> Void)? = nil
 
+        private let _shouldHighlightBlock: (Any) -> Bool
+        private let _shouldSelectBlock: (Any) -> Bool
+        private let _shouldDeselectBlock: (Any) -> Bool
         private let _didHighlightBlock: (Any) -> Void
         private let _didUnhighlightBlock: (Any) -> Void
         private let _didSelectBlock: (Any) -> Void
@@ -51,6 +54,18 @@ extension SSCollectionViewModel {
         public init<State, Binder>(_ store: BindingStore<State, Binder>)
             where Binder: SSCollectionViewCellProtocol
         {
+            _shouldHighlightBlock = { binder in
+                guard let cell = binder as? Binder else { return true }
+                return cell.shouldHighlight(with: store.state)
+            }
+            _shouldSelectBlock = { binder in
+                guard let cell = binder as? Binder else { return true }
+                return cell.shouldSelect(with: store.state)
+            }
+            _shouldDeselectBlock = { binder in
+                guard let cell = binder as? Binder else { return true }
+                return cell.shouldDeselect(with: store.state)
+            }
             _didHighlightBlock = { binder in
                 guard let cell = binder as? Binder else { return }
                 cell.didHighlight(with: store.state)
@@ -76,6 +91,24 @@ extension SSCollectionViewModel {
                 cell.didEndDisplaying(with: store.state)
             }
             super.init(store)
+        }
+
+        /// Forwards `collectionView(_:shouldHighlightItemAt:)`
+        /// to the binder using the stored item.
+        public func shouldHighlight(to binder: Any) -> Bool {
+            return _shouldHighlightBlock(binder)
+        }
+
+        /// Forwards `collectionView(_:shouldSelectItemAt:)`
+        /// to the binder using the stored item.
+        public func shouldSelect(to binder: Any) -> Bool {
+            return _shouldSelectBlock(binder)
+        }
+
+        /// Forwards `collectionView(_:shouldDeselectItemAt:)`
+        /// to the binder using the stored item.
+        public func shouldDeselect(to binder: Any) -> Bool {
+            return _shouldDeselectBlock(binder)
         }
 
         /// Forwards `collectionView(_:didHighlightItemAt:)`

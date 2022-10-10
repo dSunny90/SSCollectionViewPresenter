@@ -87,6 +87,17 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     }
 
     public func collectionView(_ collectionView: UICollectionView,
+                               shouldHighlightItemAt indexPath: IndexPath) -> Bool {
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return true }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return true }
+
+        return item.shouldHighlight(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
                                didHighlightItemAt indexPath: IndexPath) {
         guard let items = viewModel?[safe: indexPath.section]?.items else { return }
         let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
@@ -109,6 +120,28 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     }
 
     public func collectionView(_ collectionView: UICollectionView,
+                               shouldSelectItemAt indexPath: IndexPath) -> Bool {
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return true }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return true }
+
+        return item.shouldSelect(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
+                               shouldDeselectItemAt indexPath: IndexPath) -> Bool {
+        guard let items = viewModel?[safe: indexPath.section]?.items else { return true }
+        let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
+
+        guard let cell = collectionView.cellForItem(at: adjustedIndexPath),
+              let item = items[safe: indexPath.item % items.count] else { return true }
+
+        return item.shouldDeselect(to: cell)
+    }
+
+    public func collectionView(_ collectionView: UICollectionView,
                                didSelectItemAt indexPath: IndexPath) {
         guard let items = viewModel?[safe: indexPath.section]?.items else { return }
         let adjustedIndexPath = IndexPath(item: indexPath.item % items.count, section: indexPath.section)
@@ -128,6 +161,28 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
               let item = items[safe: indexPath.item % items.count] else { return }
 
         item.didDeselect(to: cell)
+    }
+
+    @available(iOS 16.0, *)
+    public func collectionView(_ collectionView: UICollectionView,
+                               canPerformPrimaryActionForItemAt indexPath: IndexPath) -> Bool {
+        guard let block = performPrimaryActionBlock,
+              let items = viewModel?[safe: indexPath.section]?.items else { return false }
+        let adjustedIndex = indexPath.item % items.count
+        guard let item = items[safe: adjustedIndex] else { return false }
+        let adjustedIndexPath = IndexPath(item: adjustedIndex, section: indexPath.section)
+        return block(adjustedIndexPath, item) != nil
+    }
+
+    @available(iOS 16.0, *)
+    public func collectionView(_ collectionView: UICollectionView,
+                               performPrimaryActionForItemAt indexPath: IndexPath) {
+        guard let block = performPrimaryActionBlock,
+              let items = viewModel?[safe: indexPath.section]?.items else { return }
+        let adjustedIndex = indexPath.item % items.count
+        guard let item = items[safe: adjustedIndex] else { return }
+        let adjustedIndexPath = IndexPath(item: adjustedIndex, section: indexPath.section)
+        block(adjustedIndexPath, item)?()
     }
 
     // MARK: - UICollectionViewDelegateFlowLayout

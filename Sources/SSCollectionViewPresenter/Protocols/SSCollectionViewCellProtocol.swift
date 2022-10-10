@@ -10,6 +10,15 @@ import UIKit
 /// A protocol that extends display lifecycle callbacks with interaction
 /// events for a collection view cell.
 public protocol InteractiveCollectionViewCell: InteractiveCollectionReusableView {
+    /// Returns whether the view should be highlighted.
+    func shouldHighlight(with input: Input?) -> Bool
+
+    /// Returns whether the view should be selected.
+    func shouldSelect(with input: Input?) -> Bool
+
+    /// Returns whether the view should be deselected.
+    func shouldDeselect(with input: Input?) -> Bool
+
     /// Called when the view is highlighted (e.g., on touch down).
     func didHighlight(with input: Input?)
 
@@ -24,6 +33,9 @@ public protocol InteractiveCollectionViewCell: InteractiveCollectionReusableView
 }
 
 extension InteractiveCollectionViewCell {
+    public func shouldHighlight(with input: Input?) -> Bool { return true }
+    public func shouldSelect(with input: Input?) -> Bool { return true }
+    public func shouldDeselect(with input: Input?) -> Bool { return true }
     public func didHighlight(with input: Input?) {}
     public func didUnhighlight(with input: Input?) {}
     public func didSelect(with input: Input?) {}

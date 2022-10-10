@@ -498,6 +498,42 @@ extension SendingState where Base: UICollectionView {
         base.presenter?.nextRequestBlock = block
     }
 
+    /// Registers a handler for a cell's primary action (iOS 16+).
+    ///
+    /// Through iOS 15, tapping a cell was delivered through
+    /// `collectionView(_:didSelectItemAt:)`, which conflated persistent
+    /// *selection state* (edit / multi-select styling) with the cell's
+    /// *primary action* (navigate, open detail, etc.). iOS 16 split them
+    /// via `collectionView(_:performPrimaryActionForItemAt:)` and the
+    /// matching `canPerformPrimaryActionForItemAt:` predicate.
+    ///
+    /// This method collapses both delegate points into a single closure.
+    /// Return a non-nil `() -> Void` when the tap should run an action for
+    /// the given cell — the presenter reports the cell as actionable and
+    /// UIKit will execute the returned closure on the follow-up
+    /// `performPrimaryAction` call. Return `nil` to veto the action for
+    /// that cell (disabled, loading, not entitled, etc.), without
+    /// affecting its selection state.
+    ///
+    /// When no handler is registered, the presenter reports every cell as
+    /// non-actionable (`false`) — unlike UIKit's permissive default, the
+    /// action only fires when the caller explicitly opts in per cell.
+    ///
+    /// The block is invoked twice per tap — once to answer
+    /// `canPerformPrimaryAction` and once to run the action — so keep the
+    /// block itself pure and inexpensive. Put side effects inside the
+    /// returned closure, not alongside the decision that builds it.
+    ///
+    /// - Parameter block: Receives the `IndexPath` of the candidate cell
+    ///   and its `CellInfo`. Return the work to execute, or `nil` to veto.
+    ///   Downcast `cellInfo.state` when type-specific routing is needed.
+    @available(iOS 16.0, *)
+    public func onPerformPrimaryAction(
+        _ block: @escaping (IndexPath, CellInfo) -> (() -> Void)?
+    ) {
+        base.presenter?.performPrimaryActionBlock = block
+    }
+
     // MARK: - Compositional Layout Callbacks
 
     /// Installs a `visibleItemsInvalidationHandler` on the compositional
