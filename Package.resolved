@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "sendingstate",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dSunny90/SendingState.git",
+      "state" : {
+        "revision" : "b806ef0ca2931950b111d13c9fcdedd3c25e7a85",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 2
+}
