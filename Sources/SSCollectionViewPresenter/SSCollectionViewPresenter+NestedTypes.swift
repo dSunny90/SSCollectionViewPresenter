@@ -264,6 +264,28 @@ extension SSCollectionViewPresenter {
                 rawValue: config.scrolling?.rawValue ?? 0
             ) ?? .none
 
+            // iOS 17+: orthogonalScrollingProperties for fine-tuning
+            // deceleration rate and bounce behavior.
+            if #available(iOS 17.0, *),
+               let properties = config.orthogonalScrollingProperties {
+                switch properties.decelerationRate {
+                case .automatic:
+                    section.orthogonalScrollingProperties.decelerationRate = .automatic
+                case .normal:
+                    section.orthogonalScrollingProperties.decelerationRate = .normal
+                case .fast:
+                    section.orthogonalScrollingProperties.decelerationRate = .fast
+                }
+                switch properties.bounce {
+                case .automatic:
+                    section.orthogonalScrollingProperties.bounce = .automatic
+                case .always:
+                    section.orthogonalScrollingProperties.bounce = .always
+                case .never:
+                    section.orthogonalScrollingProperties.bounce = .never
+                }
+            }
+
             // Header / footer boundary supplementary items, sized via
             // the SectionInfo's header/footer `size(constrainedTo:)`.
             var supplementaries = [NSCollectionLayoutBoundarySupplementaryItem]()
