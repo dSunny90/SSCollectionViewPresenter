@@ -57,15 +57,31 @@ extension SSCollectionViewPresenter {
                     width = .fractionalWidth(1 / CGFloat(config.columns))
                 }
 
+                let heightDimension: NSCollectionLayoutDimension
+                if #available(iOS 17.0, *), config.isUniformAcrossSiblings {
+                    heightDimension = .uniformAcrossSiblings(
+                        estimate: config.uniformEstimate ?? config.height
+                    )
+                } else {
+                    heightDimension = .absolute(config.height)
+                }
+
                 let itemSize = NSCollectionLayoutSize(
                     widthDimension: width,
-                    heightDimension: .absolute(config.height)
+                    heightDimension: heightDimension
                 )
                 let item = NSCollectionLayoutItem(layoutSize: itemSize)
 
+                let groupHeight: NSCollectionLayoutDimension
+                if #available(iOS 17.0, *), config.isUniformAcrossSiblings {
+                    groupHeight = .estimated(config.uniformEstimate ?? config.height)
+                } else {
+                    groupHeight = .absolute(config.height)
+                }
+
                 let groupSize = NSCollectionLayoutSize(
                     widthDimension: .fractionalWidth(1.0),
-                    heightDimension: .absolute(config.height)
+                    heightDimension: groupHeight
                 )
 
                 let group: NSCollectionLayoutGroup
