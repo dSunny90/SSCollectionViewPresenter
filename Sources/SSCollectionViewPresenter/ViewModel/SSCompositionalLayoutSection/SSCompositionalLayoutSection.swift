@@ -150,6 +150,14 @@ public struct SSCompositionalLayoutSection {
         case layoutMargins = 3
     }
 
+    /// When `true`, items in the same group are uniformly sized
+    /// based on the largest item (iOS 17+).
+    public var isUniformAcrossSiblings: Bool
+
+    /// Estimated height used for `uniformAcrossSiblings` calculation.
+    /// Only used when `isUniformAcrossSiblings` is `true`.
+    public var uniformEstimatedHeight: CGFloat?
+
     // MARK: - Init
 
     /// Creates a section configuration.
@@ -163,6 +171,8 @@ public struct SSCompositionalLayoutSection {
     ///   - sectionInset: Section content insets.
     ///   - contentInsetsReference: How supplementary views resolve
     ///     insets (iOS 16+). Defaults to `.automatic`.
+    ///   - isUniformAcrossSiblings: iOS 17+ uniform sizing.
+    ///   - uniformEstimatedHeight: Estimated height for uniform sizing.
     public init(
         direction: UICollectionView.ScrollDirection,
         itemSize: ItemSizeMode = .dynamic,
@@ -170,7 +180,9 @@ public struct SSCompositionalLayoutSection {
         itemSpacing: CGFloat? = nil,
         lineSpacing: CGFloat? = nil,
         sectionInset: UIEdgeInsets? = nil,
-        contentInsetsReference: ContentInsetsReference = .automatic
+        contentInsetsReference: ContentInsetsReference = .automatic,
+        isUniformAcrossSiblings: Bool = false,
+        uniformEstimatedHeight: CGFloat? = nil
     ) {
         self.direction = direction
         self.itemSize = itemSize
@@ -179,5 +191,7 @@ public struct SSCompositionalLayoutSection {
         self.lineSpacing = lineSpacing
         self.sectionInset = sectionInset
         self.contentInsetsReference = contentInsetsReference
+        self.isUniformAcrossSiblings = isUniformAcrossSiblings
+        self.uniformEstimatedHeight = uniformEstimatedHeight
     }
 }

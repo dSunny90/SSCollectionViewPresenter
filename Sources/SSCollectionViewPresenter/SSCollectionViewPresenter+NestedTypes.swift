@@ -188,7 +188,10 @@ extension SSCollectionViewPresenter {
 
             // Item height
             let heightDimension: NSCollectionLayoutDimension
-            if let h = height {
+            if #available(iOS 17.0, *), config.isUniformAcrossSiblings {
+                let estimate = config.uniformEstimatedHeight ?? height ?? Self.defaultCellHeight
+                heightDimension = .uniformAcrossSiblings(estimate: estimate)
+            } else if let h = height {
                 heightDimension = .absolute(h)
             } else {
                 heightDimension = .estimated(Self.defaultItemLength)
@@ -202,7 +205,10 @@ extension SSCollectionViewPresenter {
 
             // Group height
             let groupHeight: NSCollectionLayoutDimension
-            if let h = height {
+            if #available(iOS 17.0, *), config.isUniformAcrossSiblings {
+                let estimate = config.uniformEstimatedHeight ?? height ?? Self.defaultCellHeight
+                groupHeight = .estimated(estimate)
+            } else if let h = height {
                 groupHeight = .absolute(h)
             } else {
                 groupHeight = .estimated(Self.defaultItemLength)
