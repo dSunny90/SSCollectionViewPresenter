@@ -33,6 +33,12 @@ public struct SSCompositionalLayoutSection {
     var height: CGFloat
     /// Orthogonal scrolling behavior; `nil` disables orthogonal scrolling.
     var scrolling: ScrollingBehavior?
+    /// When `true`, items in the same group are uniformly sized
+    /// based on the largest item (iOS 17+).
+    var isUniformAcrossSiblings: Bool
+    /// Estimated height used for `uniformAcrossSiblings` calculation.
+    /// Only used when `isUniformAcrossSiblings` is `true`.
+    var uniformEstimate: CGFloat?
 
     /// Creates a section configuration.
     public init(
@@ -40,13 +46,17 @@ public struct SSCompositionalLayoutSection {
         columns: Int = 1,
         itemWidth: CGFloat? = nil,
         height: CGFloat,
-        scrolling: ScrollingBehavior? = nil
+        scrolling: ScrollingBehavior? = nil,
+        isUniformAcrossSiblings: Bool = false,
+        uniformEstimate: CGFloat? = nil
     ) {
         self.direction = direction
         self.columns = columns
         self.itemWidth = itemWidth
         self.height = height
         self.scrolling = scrolling
+        self.isUniformAcrossSiblings = isUniformAcrossSiblings
+        self.uniformEstimate = uniformEstimate
     }
 
     /// Orthogonal scrolling behavior that maps to
