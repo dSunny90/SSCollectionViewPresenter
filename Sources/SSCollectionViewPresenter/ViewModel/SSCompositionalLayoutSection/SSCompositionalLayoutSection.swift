@@ -150,6 +150,51 @@ public struct SSCompositionalLayoutSection {
         case layoutMargins = 3
     }
 
+    /// Orthogonal scrolling properties for fine-tuning scroll physics
+    /// on iOS 17+.
+    ///
+    /// Maps to
+    /// `NSCollectionLayoutSection.orthogonalScrollingProperties`.
+    ///
+    /// When `nil`, UIKit defaults are used.
+    public var orthogonalScrollingProperties: OrthogonalScrollingProperties?
+
+    /// Fine-grained control over orthogonal scrolling physics (iOS 17+).
+    ///
+    /// Mirrors `UICollectionLayoutSectionOrthogonalScrollingProperties`
+    /// without requiring iOS 17+ availability on the stored property.
+    public struct OrthogonalScrollingProperties {
+        /// Deceleration rate value for orthogonal scrolling.
+        public var decelerationRateValue: CGFloat = 0.998
+
+        /// Bounce behavior for orthogonal scrolling.
+        public var bounce: Bounce
+
+        /// Bounce behavior that maps to
+        /// `UICollectionLayoutSectionOrthogonalScrollingProperties.Bounce`.
+        public enum Bounce: Int {
+            /// System default behavior.
+            case automatic = 0
+            /// Always bounces at content edges.
+            case always = 1
+            /// Never bounces at content edges.
+            case never = 2
+        }
+
+        /// Creates orthogonal scrolling properties.
+        ///
+        /// - Parameters:
+        ///   - decelerationRateValue: Deceleration rate. Defaults to `0.998`.
+        ///   - bounce: Bounce behavior. Defaults to `.automatic`.
+        public init(
+            decelerationRateValue: CGFloat = 0.998,
+            bounce: Bounce = .automatic
+        ) {
+            self.decelerationRateValue = decelerationRateValue
+            self.bounce = bounce
+        }
+    }
+
     /// When `true`, items in the same group are uniformly sized
     /// based on the largest item (iOS 17+).
     public var isUniformAcrossSiblings: Bool
@@ -171,6 +216,8 @@ public struct SSCompositionalLayoutSection {
     ///   - sectionInset: Section content insets.
     ///   - contentInsetsReference: How supplementary views resolve
     ///     insets (iOS 16+). Defaults to `.automatic`.
+    ///   - orthogonalScrollingProperties: Fine-grained orthogonal
+    ///     scroll physics (iOS 17+). Defaults to `nil`.
     ///   - isUniformAcrossSiblings: iOS 17+ uniform sizing.
     ///   - uniformEstimatedHeight: Estimated height for uniform sizing.
     public init(
@@ -181,6 +228,7 @@ public struct SSCompositionalLayoutSection {
         lineSpacing: CGFloat? = nil,
         sectionInset: UIEdgeInsets? = nil,
         contentInsetsReference: ContentInsetsReference = .automatic,
+        orthogonalScrollingProperties: OrthogonalScrollingProperties? = nil,
         isUniformAcrossSiblings: Bool = false,
         uniformEstimatedHeight: CGFloat? = nil
     ) {
@@ -191,6 +239,7 @@ public struct SSCompositionalLayoutSection {
         self.lineSpacing = lineSpacing
         self.sectionInset = sectionInset
         self.contentInsetsReference = contentInsetsReference
+        self.orthogonalScrollingProperties = orthogonalScrollingProperties
         self.isUniformAcrossSiblings = isUniformAcrossSiblings
         self.uniformEstimatedHeight = uniformEstimatedHeight
     }
