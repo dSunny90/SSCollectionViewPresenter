@@ -14,7 +14,7 @@ extension SSCollectionViewModel {
     /// headers/footers, and cells. Use this to declaratively assemble the data
     /// that will be presented in a `UICollectionView`.
     ///
-    /// Example:
+    /// # Example
     /// ```swift
     /// let builder = SSCollectionViewModel.Builder()
     /// let model = builder
@@ -54,8 +54,18 @@ extension SSCollectionViewModel {
 
         public init() {}
 
-        /// Starts a new section. If `content` is provided, the section is
-        /// automatically closed after executing the block.
+        /// Starts a new section.
+        ///
+        /// Any previously open section is closed before the new one begins.
+        /// If `content` is provided, the block is executed and the section is
+        /// closed automatically upon completion.
+        ///
+        /// - Parameters:
+        ///   - id: An optional identifier for the section. Defaults to a
+        ///         randomly generated UUID string.
+        ///   - content: An optional block for adding items to this section.
+        ///              The section closes automatically after the block returns.
+        /// - Returns: The builder, for chaining.
         @discardableResult
         public func section(_ id: String? = nil,
                             _ content: (() -> Void)? = nil) -> Self {
@@ -77,7 +87,92 @@ extension SSCollectionViewModel {
             return self
         }
 
-        /// Sets the section inset for the currently open section.
+        /// Adds multiple sections, with optional per-section and per-unit
+        /// configuration.
+        ///
+        /// Each section is opened in order. `configureSection` runs first,
+        /// allowing layout properties such as inset and spacings to be set
+        /// before units are added via `configureUnit`.
+        ///
+        /// When the server and client share a contract that guarantees
+        /// section and item ordering, the list can be passed directly
+        /// without manual iteration.
+        ///
+        /// - Parameters:
+        ///   - sectionList: The sections to add.
+        ///   - configureSection: An optional closure called once per section
+        ///                       before its units are added. Receives the
+        ///                       section and the builder.
+        ///   - configureUnit: A closure called once per unit within each
+        ///                    section. Receives the unit and the builder.
+        /// - Returns: The builder, for chaining.
+        ///
+        /// # Example
+        /// ```swift
+        /// collectionView.ss.buildViewModel { builder in
+        ///     builder.sections(
+        ///         result.sectionList,
+        ///         configureSection: { section, builder in
+        ///             guard let sectionId = section.sectionId else { return }
+        ///             switch sectionId {
+        ///             case "ProductList":
+        ///                 builder.sectionInset(.init(top: 20, left: 15, bottom: 20, right: 15))
+        ///                 builder.minimumLineSpacing(15)
+        ///             case "TripleItems":
+        ///                 builder.sectionInset(.init(top: 20, left: 10, bottom: 20, right: 10))
+        ///                 builder.minimumLineSpacing(10)
+        ///                 builder.minimumInteritemSpacing(1)
+        ///             default:
+        ///                 builder.sectionInset(.zero)
+        ///                 builder.minimumLineSpacing(0)
+        ///                 builder.minimumInteritemSpacing(0)
+        ///             }
+        ///         },
+        ///         configureUnit: { unit, builder in
+        ///             switch unit.unitType {
+        ///             case "SS_TOP_BANNER":
+        ///                 guard let banrList = unit.unitData as? [BannerModel] else { return }
+        ///                 builder.cell(banrList, cellType: TopBannerCell.self)
+        ///             case "SS_PRODUCT_LIST":
+        ///                 guard let productList = unit.unitData as? [ProductModel] else { return }
+        ///                 builder.cells(productList, cellType: ProductCell.self)
+        ///             case "SS_MY_FAVORITES":
+        ///                 guard let myFavorites = unit.unitData as? MyFavoritesModel else { return }
+        ///                 if let titleInfo = myFavorites.titleInfo {
+        ///                     builder.header(titleInfo, viewType: MyFavoriteHeaderView.self)
+        ///                 }
+        ///                 builder.cells(myFavorites.productList, cellType: ProductCell.self)
+        ///             default:
+        ///                 break
+        ///             }
+        ///         }
+        ///     )
+        /// }
+        /// collectionView.reloadData()
+        /// ```
+        @discardableResult
+        public func sections(
+            _ sectionList: [any ViewModelSectionRepresentable],
+            configureSection: ((_ section: any ViewModelSectionRepresentable, _ builder: Builder) -> Void)? = nil,
+            configureUnit: @escaping (_ unit: any ViewModelUnitRepresentable, _ builder: Builder) -> Void
+        ) -> Self {
+            for section in sectionList {
+                self.section(section.sectionId) {
+                    // Allow caller to configure inset/spacings for this section
+                    configureSection?(section, self)
+                    // Then add units
+                    for unit in section.units {
+                        configureUnit(unit, self)
+                    }
+                }
+            }
+            return self
+        }
+
+        /// Sets the edge inset for the currently open section.
+        ///
+        /// - Parameter inset: The inset to apply around the section's items.
+        /// - Returns: The builder, for chaining.
         @discardableResult
         public func sectionInset(_ inset: UIEdgeInsets) -> Self {
             ensureSectionIfNeeded()
@@ -86,6 +181,10 @@ extension SSCollectionViewModel {
         }
 
         /// Sets the minimum line spacing for the currently open section.
+        ///
+        /// - Parameter spacing: The minimum spacing between successive rows
+        ///                      or columns.
+        /// - Returns: The builder, for chaining.
         @discardableResult
         public func minimumLineSpacing(_ spacing: CGFloat) -> Self {
             ensureSectionIfNeeded()
@@ -94,6 +193,10 @@ extension SSCollectionViewModel {
         }
 
         /// Sets the minimum interitem spacing for the currently open section.
+        ///
+        /// - Parameter spacing: The minimum spacing between items in the same
+        ///                      row or column.
+        /// - Returns: The builder, for chaining.
         @discardableResult
         public func minimumInteritemSpacing(_ spacing: CGFloat) -> Self {
             ensureSectionIfNeeded()
@@ -102,6 +205,16 @@ extension SSCollectionViewModel {
         }
 
         /// Sets the grid column count for the currently open section.
+        ///
+        /// - Parameter count: The number of columns to use when laying out items.
+        ///                    When set to `0`, section insets are ignored and
+        ///                    each item fills the full width of the collection
+        ///                    view's bounds. When set to a positive value, items
+        ///                    are distributed evenly across the row, with their
+        ///                    width derived from the available content width
+        ///                    after applying section insets and inter-item
+        ///                    spacing.
+        /// - Returns: The builder, for chaining.
         @discardableResult
         public func gridColumnCount(_ count: Int) -> Self {
             ensureSectionIfNeeded()
@@ -110,6 +223,13 @@ extension SSCollectionViewModel {
         }
 
         /// Adds a single cell to the current section.
+        ///
+        /// - Parameters:
+        ///   - model: The model to bind to the cell.
+        ///   - cellType: The cell type that renders `model`.
+        ///   - actionClosure: A closure invoked when the cell sends an action.
+        ///                    Receives the index path, the cell, an action name,
+        ///                    and an optional input value.
         public func cell<T, V>(
             _ model: T,
             cellType: V.Type,
@@ -126,6 +246,13 @@ extension SSCollectionViewModel {
         }
 
         /// Adds multiple cells to the current section.
+        ///
+        /// - Parameters:
+        ///   - models: A sequence of models to bind, one cell per element.
+        ///   - cellType: The cell type that renders each element.
+        ///   - actionClosure: A closure invoked when the cell sends an action.
+        ///                    Receives the index path, the cell, an action name,
+        ///                    and an optional input value.
         public func cells<S: Sequence, V>(
             _ models: S,
             cellType: V.Type,
@@ -144,7 +271,14 @@ extension SSCollectionViewModel {
             currentItems.append(contentsOf: items)
         }
 
-        /// Sets the header of the current section.
+        /// Sets the header view for the currently open section.
+        ///
+        /// - Parameters:
+        ///   - model: The model to bind to the header view.
+        ///   - viewType: The reusable view type that renders `model`.
+        ///   - actionClosure: A closure invoked when the header view sends
+        ///                    an action. Receives the section index, the view,
+        ///                    an action name, and an optional input value.
         public func header<T, V>(
             _ model: T,
             viewType: V.Type,
@@ -158,7 +292,14 @@ extension SSCollectionViewModel {
             currentHeader = header
         }
 
-        /// Sets the footer of the current section.
+        /// Sets the footer view for the currently open section.
+        ///
+        /// - Parameters:
+        ///   - model: The model to bind to the footer view.
+        ///   - viewType: The reusable view type that renders `model`.
+        ///   - actionClosure: A closure invoked when the footer view sends
+        ///                    an action. Receives the section index, the view,
+        ///                    an action name, and an optional input value.
         public func footer<T, V>(
             _ model: T,
             viewType: V.Type,
@@ -172,7 +313,14 @@ extension SSCollectionViewModel {
             currentFooter = footer
         }
 
-        /// Finalizes and returns the built model.
+        /// Finalizes all open sections and returns the built view model.
+        ///
+        /// - Parameters:
+        ///   - page: The current page index. Defaults to `0`.
+        ///   - hasNext: Whether more pages are available. Defaults to `false`.
+        ///   - isIndexTitlesEnabled: Whether to display index titles.
+        ///                           Defaults to `false`.
+        /// - Returns: A fully constructed `SSCollectionViewModel`.
         public func build(page: Int = 0, hasNext: Bool = false, isIndexTitlesEnabled: Bool = false) -> SSCollectionViewModel {
             closeCurrentSectionIfNeeded()
             return SSCollectionViewModel(sections: sections, page: page, hasNext: hasNext, isIndexTitlesEnabled: isIndexTitlesEnabled)
