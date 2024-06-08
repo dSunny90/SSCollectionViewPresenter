@@ -270,6 +270,79 @@ extension SendingState where Base: UICollectionView {
         base.presenter?.cancelPrefetchBlock = block
     }
 
+    // MARK: - Reorder
+
+    /// Enables or disables drag & drop reordering.
+    ///
+    /// When enabled, items can be reordered by long-pressing and dragging
+    /// within the same collection view.
+    ///
+    /// - Parameter enabled: Pass `true` to enable, `false` to disable.
+    public func setReorderEnabled(_ enabled: Bool) {
+        base.presenter?.isReorderEnabled = enabled
+        base.presenter?.configureReorder()
+    }
+
+    /// Sets a closure to determine whether a specific item can be dragged.
+    ///
+    /// Return `false` to prevent dragging that item. If not set, all items
+    /// are draggable by default.
+    ///
+    /// - Parameter block: A closure receiving the item's `CellInfo`.
+    ///   Return `true` to allow dragging, `false` to prevent it.
+    public func onCanDragItem(
+        _ block: @escaping ((CellInfo) -> Bool)
+    ) {
+        base.presenter?.canDragItemBlock = block
+    }
+
+    /// Sets a closure called right before a reorder is applied.
+    ///
+    /// Use this to observe which items are about to move.
+    ///
+    /// - Parameter block: A closure receiving an array of
+    ///   `(indexPath:cellInfo:)` tuples for the items being moved.
+    public func onWillReorder(
+        _ block: @escaping (([(indexPath: IndexPath, cellInfo: CellInfo)]) -> Void)
+    ) {
+        base.presenter?.willReorderBlock = block
+    }
+
+    /// Sets a closure called after a reorder transaction completes.
+    ///
+    /// Provides the reordered items and the final destination index path
+    /// of the first moved item.
+    ///
+    /// - Parameter block: A closure receiving an array of
+    ///   `(indexPath:cellInfo:)` tuples and the destination `IndexPath`.
+    public func onDidReorder(
+        _ block: @escaping (([(indexPath: IndexPath, cellInfo: CellInfo)], IndexPath) -> Void)
+    ) {
+        base.presenter?.didReorderBlock = block
+    }
+
+    /// Sets a custom drag preview parameters provider.
+    ///
+    /// - Parameter block: Receives the index path and returns
+    ///   `UIDragPreviewParameters`, or `nil` for default behavior.
+    public func onDragPreviewParameters(
+        _ block: @escaping (IndexPath) -> UIDragPreviewParameters?
+    ) {
+        base.presenter?.dragPreviewParametersBlock = block
+    }
+
+    /// Sets a closure that provides a custom drag preview view for an item.
+    ///
+    /// The closure receives the item's `CellInfo` and returns a `UIView` to use
+    /// as the drag preview. Return `nil` to use the default cell snapshot.
+    ///
+    /// - Parameter block: A closure called when a drag preview is needed.
+    ///   - cellInfo: The ``SSCollectionViewModel/CellInfo`` of the item being dragged.
+    ///   - returns: A custom `UIView` for the preview, or `nil` for the default.
+    public func setDragPreviewProvider(_ block: @escaping (CellInfo) -> UIView?) {
+        base.presenter?.dragPreviewProviderBlock = block
+    }
+
     // MARK: - Snapshot Application (iOS 13+)
 
     /// Applies the current diffable data source snapshot.
