@@ -164,6 +164,27 @@ public final class SSCollectionViewPresenter: NSObject {
     /// Provides a custom preview view for a dragged item. Returns nil for default.
     internal var dragPreviewProviderBlock: ((CellInfo) -> UIView?)?
 
+    // MARK: - External Drag & Drop Handlers (iPad)
+
+    /// Whether external drag & drop is enabled.
+    ///
+    /// When enabled, items can be dragged out to or dropped in from
+    /// other apps on iPad.
+    internal var isExternalDragDropEnabled: Bool = false
+
+    /// Optional provider to build an NSItemProvider
+    /// for a given cell & cell info when a drag begins.
+    internal var dragItemProviderBlock: ((UICollectionViewCell, CellInfo) -> NSItemProvider?)?
+
+    /// UTType identifiers accepted for external drops.
+    /// Only drop sessions advertising a matching type are forwarded to
+    /// `externalDropHandler`.
+    internal var acceptedExternalDropTypeIdentifiers: [String] = []
+
+    /// Converts an externally dropped value into a `CellInfo` at the
+    /// destination index path. Return `nil` to reject the drop.
+    internal var externalDropHandler: ((Any?, IndexPath) -> CellInfo?)?
+
     // MARK: - Page Event Callbacks
 
     /// Called just before a page becomes visible.
@@ -453,28 +474,38 @@ public final class SSCollectionViewPresenter: NSObject {
         }
     }
 
-    // MARK: - Reorder Configuration
+    // MARK: - Drag&Drop Configuration
 
-    /// Configures drag & drop reordering on the collection view.
+    /// Configures drag & drop on the collection view.
     ///
-    /// When enabled, sets `dragInteractionEnabled = true` and assigns the
+    /// When either `isReorderEnabled` or `isExternalDragDropEnabled` is
+    /// `true`, sets `dragInteractionEnabled = true` and assigns the
     /// presenter as both `dragDelegate` and `dropDelegate`.
-    /// Reorder is incompatible with infinite paging.
-    internal func configureReorder() {
+    ///
+    /// If `isReorderEnabled` is `true` and the data source is `.diffable`,
+    /// reordering handlers are also applied via
+    /// `DiffableSupportCore.configureReorderingHandlers(canDragItem:willReorder:didReorder:)`.
+    ///
+    /// - Note: Both reordering and external drag & drop are incompatible
+    ///   with infinite paging. If either is enabled alongside
+    ///   `isInfinitePage`, an assertion failure is triggered and both
+    ///   flags are reset to `false`.
+    internal func configureDragDrop() {
         guard let collectionView = collectionView else { return }
-        if isReorderEnabled {
+        if isReorderEnabled || isExternalDragDropEnabled {
             guard !isInfinitePage else {
                 assertionFailure(
-                    "⚠️ [SSCollectionViewPresenter] Reorder is not supported with infinite paging."
+                    "⚠️ [SSCollectionViewPresenter] Reorder / External Drag&Drop is not supported with infinite paging."
                 )
                 isReorderEnabled = false
+                isExternalDragDropEnabled = false
                 return
             }
             collectionView.dragInteractionEnabled = true
             collectionView.dragDelegate = self
             collectionView.dropDelegate = self
 
-            if #available(iOS 14.0, *), dataSourceMode == .diffable {
+            if isReorderEnabled, #available(iOS 14.0, *), dataSourceMode == .diffable {
                 diffableSupportCore?.configureReorderingHandlers(
                     canDragItem: canDragItemBlock,
                     willReorder: willReorderBlock,
