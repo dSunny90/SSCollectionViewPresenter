@@ -403,6 +403,6 @@ https://github.com/dSunny90/SSCollectionViewPresenter
 ### Using Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/dSunny90/SSCollectionViewPresenter", from: "0.2.2")
+    .package(url: "https://github.com/dSunny90/SSCollectionViewPresenter", from: "0.2.3")
 ]
 ```

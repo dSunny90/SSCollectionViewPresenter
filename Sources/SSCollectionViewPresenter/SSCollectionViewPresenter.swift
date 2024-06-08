@@ -144,6 +144,26 @@ public final class SSCollectionViewPresenter: NSObject {
         set { pagingConfig.autoRollingTimeInterval = newValue }
     }
 
+    // MARK: - Reorder
+
+    /// Whether drag & drop reordering is enabled.
+    internal var isReorderEnabled: Bool = false
+
+    /// Determines if a specific item can be dragged. Defaults to `true` if nil.
+    internal var canDragItemBlock: ((CellInfo) -> Bool)?
+
+    /// Called with the items about to move, before the snapshot is applied.
+    internal var willReorderBlock: (([(indexPath: IndexPath, cellInfo: CellInfo)]) -> Void)?
+
+    /// Called after the snapshot is applied with moved items and destination.
+    internal var didReorderBlock: (([(indexPath: IndexPath, cellInfo: CellInfo)], IndexPath) -> Void)?
+
+    /// Provides custom `UIDragPreviewParameters` for a dragged item.
+    internal var dragPreviewParametersBlock: ((IndexPath) -> UIDragPreviewParameters?)?
+
+    /// Provides a custom preview view for a dragged item. Returns nil for default.
+    internal var dragPreviewProviderBlock: ((CellInfo) -> UIView?)?
+
     // MARK: - Page Event Callbacks
 
     /// Called just before a page becomes visible.
@@ -279,6 +299,7 @@ public final class SSCollectionViewPresenter: NSObject {
         case .diffable:
             if #available(iOS 13.0, *) {
                 self.diffableSupportCore = DiffableSupportCore()
+                self.diffableSupportCore?.presenter = self
                 self.diffableSupportCore?.configureDiffableDataSource(
                     in: collectionView,
                     anyActionHandler: actionHandler
@@ -286,6 +307,41 @@ public final class SSCollectionViewPresenter: NSObject {
             } else {
                 assertionFailure("Diffable is not supported below iOS 13.")
             }
+        }
+    }
+
+    // MARK: - Reorder Configuration
+
+    /// Configures drag & drop reordering on the collection view.
+    ///
+    /// When enabled, sets `dragInteractionEnabled = true` and assigns the
+    /// presenter as both `dragDelegate` and `dropDelegate`.
+    /// Reorder is incompatible with infinite paging.
+    internal func configureReorder() {
+        guard let collectionView = collectionView else { return }
+        if isReorderEnabled {
+            guard !isInfinitePage else {
+                assertionFailure(
+                    "⚠️ [SSCollectionViewPresenter] Reorder is not supported with infinite paging."
+                )
+                isReorderEnabled = false
+                return
+            }
+            collectionView.dragInteractionEnabled = true
+            collectionView.dragDelegate = self
+            collectionView.dropDelegate = self
+
+            if #available(iOS 14.0, *), dataSourceMode == .diffable {
+                diffableSupportCore?.configureReorderingHandlers(
+                    canDragItem: canDragItemBlock,
+                    willReorder: willReorderBlock,
+                    didReorder: didReorderBlock
+                )
+            }
+        } else {
+            collectionView.dragInteractionEnabled = false
+            collectionView.dragDelegate = nil
+            collectionView.dropDelegate = nil
         }
     }
 
