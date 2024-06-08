@@ -280,7 +280,7 @@ extension SendingState where Base: UICollectionView {
     /// - Parameter enabled: Pass `true` to enable, `false` to disable.
     public func setReorderEnabled(_ enabled: Bool) {
         base.presenter?.isReorderEnabled = enabled
-        base.presenter?.configureReorder()
+        base.presenter?.configureDragDrop()
     }
 
     /// Sets a closure to determine whether a specific item can be dragged.
@@ -341,6 +341,64 @@ extension SendingState where Base: UICollectionView {
     ///   - returns: A custom `UIView` for the preview, or `nil` for the default.
     public func setDragPreviewProvider(_ block: @escaping (CellInfo) -> UIView?) {
         base.presenter?.dragPreviewProviderBlock = block
+    }
+
+    // MARK: - External Drag & Drop Handlers (iPad)
+
+    /// Enables or disables external drag & drop.
+    ///
+    /// When enabled, items can be dragged out to or dropped in from
+    /// other apps. This feature is intended for iPad, where
+    /// multi-window and inter-app drag & drop are supported.
+    ///
+    /// - Parameter enabled: Pass `true` to enable, `false` to disable.
+    public func setExternalDragDropEnabled(_ enabled: Bool) {
+        base.presenter?.isExternalDragDropEnabled = enabled
+        base.presenter?.configureDragDrop()
+    }
+
+    /// Sets a custom item provider for drag operations.
+    ///
+    /// Use this to supply an `NSItemProvider` for external drops, such as
+    /// dragging items into another app. Return `nil` to fall back to the
+    /// default provider.
+    ///
+    /// - Parameter block: A closure called when a drag begins.
+    ///   - cell: The visible `UICollectionViewCell` for the dragged item.
+    ///   - cellInfo: The ``SSCollectionViewModel/CellInfo`` of the dragged item.
+    ///   - returns: An `NSItemProvider` for external payloads, or `nil` for
+    ///     the default behavior.
+    public func setDragItemProvider(
+        _ block: @escaping (UICollectionViewCell, CellInfo) -> NSItemProvider?
+    ) {
+        base.presenter?.dragItemProviderBlock = block
+    }
+
+    /// Sets the UTType identifiers accepted for external drops.
+    ///
+    /// Only drop sessions advertising a matching type are forwarded to
+    /// the handler registered with ``onExternalDrop(_:)``.
+    ///
+    /// - Parameter typeIdentifiers: An array of UTType identifier strings
+    ///   (e.g. `[UTType.plainText.identifier]`).
+    public func setAcceptedExternalDropTypeIdentifiers(
+        _ typeIdentifiers: [String]
+    ) {
+        base.presenter?.acceptedExternalDropTypeIdentifiers = typeIdentifiers
+    }
+
+    /// Sets a handler to convert an externally dropped value into a cell.
+    ///
+    /// Called when a drop originates outside the collection view. Return
+    /// `nil` to reject the drop.
+    ///
+    /// - Parameter block: A closure called when an external drop is received.
+    ///   - value: The dropped value. Cast to the expected type as needed.
+    ///   - indexPath: The destination `IndexPath` of the drop.
+    ///   - returns: A ``SSCollectionViewModel/CellInfo`` to insert, or `nil`
+    ///     to reject.
+    public func onExternalDrop(_ block: @escaping (Any?, IndexPath) -> CellInfo?) {
+        base.presenter?.externalDropHandler = block
     }
 
     // MARK: - Snapshot Application (iOS 13+)
