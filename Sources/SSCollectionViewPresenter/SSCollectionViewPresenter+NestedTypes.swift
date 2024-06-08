@@ -550,6 +550,9 @@ extension SSCollectionViewPresenter {
     /// but snapshot construction is performed synchronously.
     @available(iOS 13.0, *)
     internal class DiffableSupportCore {
+        /// Back-reference to the owning presenter. Set during configuration.
+        internal weak var presenter: SSCollectionViewPresenter?
+
         /// The `UICollectionViewDiffableDataSource` instance.
         ///
         /// Created during ``configureDiffableDataSource(in:anyActionHandler:)``
@@ -566,6 +569,12 @@ extension SSCollectionViewPresenter {
         /// Also used by the supplementary view provider to look up section
         /// headers and footers.
         private var snapshot: NSDiffableDataSourceSnapshot<SectionInfo, CellInfo>?
+
+        // MARK: - Reorder Page Cache
+        private var isReorderingTransaction: Bool = false
+        private var cachedPage: Int?
+        private var cachedHasNext: Bool?
+        private var cachedPageSectionCounts: [(page: Int, count: Int)]?
 
         /// Creates the diffable data source and attaches it to the
         /// collection view.
@@ -750,6 +759,97 @@ extension SSCollectionViewPresenter {
             dataSource?.snapshot(for: section)
         }
 
+        /// Configures reordering handlers on the diffable data source (iOS 14+).
+        ///
+        /// Wires up `canReorderItem` and `didReorder` on
+        /// `UICollectionViewDiffableDataSource` so that drag & drop
+        /// reordering works correctly with snapshots.
+        ///
+        /// - Parameter canDragItemBlock: Optional closure to check per-item
+        ///   drag eligibility by index path.
+        @available(iOS 14.0, *)
+        internal func configureReorderingHandlers(
+            canDragItem: ((CellInfo) -> Bool)?,
+            willReorder: (([(indexPath: IndexPath, cellInfo: CellInfo)]) -> Void)?,
+            didReorder: (([(indexPath: IndexPath, cellInfo: CellInfo)], IndexPath) -> Void)?
+        ) {
+            guard let dataSource else { return }
+
+            dataSource.reorderingHandlers.canReorderItem = canDragItem
+            dataSource.reorderingHandlers.willReorder = { [weak self] transaction in
+                guard let self else { return }
+
+                let movingItems: [(indexPath: IndexPath, cellInfo: CellInfo)] =
+                    transaction.sectionTransactions.flatMap { sectionTransaction in
+                        sectionTransaction.difference.compactMap { change in
+                            guard case let .insert(_, item, _?) = change,
+                                  let source = self.indexPath(of: item, in: transaction.initialSnapshot)
+                            else { return nil }
+
+                            return (indexPath: source, cellInfo: item)
+                        }
+                    }
+
+                guard !movingItems.isEmpty else { return }
+
+                // Cache pagination state at the beginning of a reorder transaction
+                if self.isReorderingTransaction == false {
+                    self.cachedPage = self.presenter?.viewModel?.page
+                    self.cachedHasNext = self.presenter?.viewModel?.hasNext
+                    if let pageMap = self.presenter?.viewModel?.pageMap, !pageMap.isEmpty {
+                        let orderedPages = pageMap.keys.sorted()
+                        self.cachedPageSectionCounts = orderedPages.map {
+                            (page: $0, count: pageMap[$0]?.count ?? 0)
+                        }
+                    } else {
+                        self.cachedPageSectionCounts = nil
+                    }
+                    self.isReorderingTransaction = true
+                }
+
+                willReorder?(movingItems)
+            }
+
+            dataSource.reorderingHandlers.didReorder = { [weak self] transaction in
+                guard let self else { return }
+
+                let movingItems: [(indexPath: IndexPath, cellInfo: CellInfo)] =
+                    transaction.sectionTransactions.flatMap { sectionTransaction in
+                        sectionTransaction.difference.compactMap { change in
+                            guard case let .insert(_, item, _?) = change,
+                                  let source = self.indexPath(of: item, in: transaction.initialSnapshot)
+                            else {
+                                return nil
+                            }
+
+                            return (indexPath: source, cellInfo: item)
+                        }
+                    }
+
+                guard !movingItems.isEmpty else { return }
+
+                self.applyViewModel(from: transaction.finalSnapshot)
+
+                // Mark transaction end; cache will be consumed in applyViewModel
+                self.isReorderingTransaction = false
+
+                let destinationIndexPaths: [IndexPath] = movingItems.compactMap {
+                    self.indexPath(of: $0.cellInfo, in: transaction.finalSnapshot)
+                }
+
+                guard let destination = destinationIndexPaths.sorted(by: {
+                    if $0.section != $1.section {
+                        return $0.section < $1.section
+                    }
+                    return $0.item < $1.item
+                }).first else {
+                    return
+                }
+
+                didReorder?(movingItems, destination)
+            }
+        }
+
         // MARK: - iOS 15+ Reconfigure Items
 
         /// Reconfigures cells for the given item identifiers without reloading.
@@ -776,6 +876,67 @@ extension SSCollectionViewPresenter {
         internal func applySnapshotUsingReloadData() {
             guard let snapshot = snapshot else { return }
             dataSource?.applySnapshotUsingReloadData(snapshot)
+        }
+
+        private func applyViewModel(
+            from snapshot: NSDiffableDataSourceSnapshot<SectionInfo, CellInfo>
+        ) {
+            // Rebuild sections by taking section identifiers and replacing their items
+            var rebuiltSections: [SectionInfo] = []
+            for section in snapshot.sectionIdentifiers {
+                var rebuilt = section
+                let items = snapshot.itemIdentifiers(inSection: section)
+                rebuilt.items = items
+                rebuiltSections.append(rebuilt)
+            }
+
+            // Use cached pagination flags when reordering; otherwise, fall back to current model
+            var newViewModel = presenter?.viewModel ?? SSCollectionViewModel()
+            let targetPage = cachedPage ?? newViewModel.page
+            let targetHasNext = cachedHasNext ?? newViewModel.hasNext
+
+            // Attempt to restore original page splits using cached section counts per page
+            if let splits = cachedPageSectionCounts,
+               !splits.isEmpty,
+               splits.reduce(0, { $0 + $1.count }) == rebuiltSections.count {
+                newViewModel.pageMap.removeAll()
+                var cursor = 0
+                for entry in splits {
+                    let end = cursor + entry.count
+                    let slice = Array(rebuiltSections[cursor..<end])
+                    newViewModel.setPage(entry.page, sections: slice)
+                    cursor = end
+                }
+                // Restore the current page and hasNext explicitly
+                newViewModel.page = targetPage
+                newViewModel.hasNext = targetHasNext
+            } else {
+                // Fallback: store everything into the current page to keep pageMap/sections in sync
+                newViewModel.pageMap.removeAll()
+                newViewModel.setPage(targetPage, sections: rebuiltSections)
+                newViewModel.hasNext = targetHasNext
+            }
+
+            // Clear caches after consuming
+            cachedPage = nil
+            cachedHasNext = nil
+            cachedPageSectionCounts = nil
+
+            presenter?.viewModel = newViewModel
+        }
+
+        // Build quick lookup for index paths in snapshot
+        private func indexPath(
+            of item: CellInfo,
+            in snapshot: NSDiffableDataSourceSnapshot<SectionInfo, CellInfo>
+        ) -> IndexPath? {
+            for (sectionIndex, section) in snapshot.sectionIdentifiers.enumerated() {
+                let items = snapshot.itemIdentifiers(inSection: section)
+                if let row = items.firstIndex(of: item) {
+                    return IndexPath(item: row, section: sectionIndex)
+                }
+            }
+            return nil
         }
     }
 
