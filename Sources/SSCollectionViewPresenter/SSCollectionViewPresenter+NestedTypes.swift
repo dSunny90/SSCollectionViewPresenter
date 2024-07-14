@@ -61,6 +61,7 @@ extension SSCollectionViewPresenter {
     /// |------|----------|
     /// | `.uniform(columns:width:height:)` | All items share the same size.|
     /// | `.dynamic` | Each cell determines its own size. |
+    @MainActor
     public struct CompositionalLayoutConfig {
         static let defaultItemLength: CGFloat = 50
 
@@ -76,8 +77,8 @@ extension SSCollectionViewPresenter {
         /// - Returns: A configured compositional layout instance.
         @available(iOS 13.0, *)
         func makeLayout(
-            viewModelProvider: @escaping () -> SSCollectionViewModel? = { nil },
-            visibleItemsInvalidationHandlerProvider: @escaping (Int) -> VisibleItemsInvalidationHandler? = { _ in nil }
+            viewModelProvider: @escaping @MainActor () -> SSCollectionViewModel? = { nil },
+            visibleItemsInvalidationHandlerProvider: @escaping @MainActor (Int) -> VisibleItemsInvalidationHandler? = { _ in nil }
         ) -> UICollectionViewCompositionalLayout {
             return UICollectionViewCompositionalLayout { idx, environment in
                 guard let config = self.sections[safe: idx],
@@ -189,7 +190,7 @@ extension SSCollectionViewPresenter {
             // Item height
             let heightDimension: NSCollectionLayoutDimension
             if #available(iOS 17.0, *), config.isUniformAcrossSiblings {
-                let estimate = config.uniformEstimatedHeight ?? height ?? Self.defaultCellHeight
+                let estimate = config.uniformEstimatedHeight ?? height ?? Self.defaultItemLength
                 heightDimension = .uniformAcrossSiblings(estimate: estimate)
             } else if let h = height {
                 heightDimension = .absolute(h)
@@ -206,7 +207,7 @@ extension SSCollectionViewPresenter {
             // Group height
             let groupHeight: NSCollectionLayoutDimension
             if #available(iOS 17.0, *), config.isUniformAcrossSiblings {
-                let estimate = config.uniformEstimatedHeight ?? height ?? Self.defaultCellHeight
+                let estimate = config.uniformEstimatedHeight ?? height ?? Self.defaultItemLength
                 groupHeight = .estimated(estimate)
             } else if let h = height {
                 groupHeight = .absolute(h)
@@ -377,6 +378,7 @@ extension SSCollectionViewPresenter {
     /// )
     /// collectionView.ss.setupPresenter(layoutKind: .list(config))
     /// ```
+    @MainActor
     public struct ListLayoutConfig {
         /// The visual style of the list.
         public enum Appearance: Int {
@@ -549,6 +551,7 @@ extension SSCollectionViewPresenter {
     /// `UICollectionViewDiffableDataSource.apply` uses the main queue internally,
     /// but snapshot construction is performed synchronously.
     @available(iOS 13.0, *)
+    @MainActor
     internal class DiffableSupportCore {
         /// Back-reference to the owning presenter. Set during configuration.
         internal weak var presenter: SSCollectionViewPresenter?

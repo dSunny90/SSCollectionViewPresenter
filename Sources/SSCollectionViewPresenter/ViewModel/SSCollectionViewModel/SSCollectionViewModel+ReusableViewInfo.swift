@@ -12,7 +12,7 @@ extension SSCollectionViewModel {
     /// A type-erased container that holds information for a single
     /// reusable view (e.g. header/footer), used by `SSCollectionViewPresenter`
     /// to configure and render reusable views in the collection view.
-    public final class ReusableViewInfo: AnyBindingStore {
+    public final class ReusableViewInfo: AnyBindingStore, @unchecked Sendable {
         /// A closure invoked when the bound view sends an action.
         ///
         /// - Parameters:
@@ -22,8 +22,8 @@ extension SSCollectionViewModel {
         ///   - input: An optional value passed by the caller for the action.
         public var actionClosure: ((Int, UICollectionReusableView, String, Any?) -> Void)? = nil
 
-        private let _willDisplayBlock: (Any) -> Void
-        private let _didEndDisplayingBlock: (Any) -> Void
+        private let _willDisplayBlock: @MainActor (Any) -> Void
+        private let _didEndDisplayingBlock: @MainActor (Any) -> Void
 
         /// Creates a type-erased wrapper for a reusable view binding store.
         ///
@@ -45,9 +45,11 @@ extension SSCollectionViewModel {
         }
 
         /// Forwards `collectionView(_:willDisplaySupplementaryView:forElementKind:at:)` to the binder using the stored item.
+        @MainActor
         public func willDisplay(to binder: Any) { _willDisplayBlock(binder) }
 
         /// Forwards `collectionView(_:didEndDisplayingSupplementaryView:forElementOfKind:at:)` to the binder using the stored item.
+        @MainActor
         public func didEndDisplaying(to binder: Any) { _didEndDisplayingBlock(binder) }
     }
 }
