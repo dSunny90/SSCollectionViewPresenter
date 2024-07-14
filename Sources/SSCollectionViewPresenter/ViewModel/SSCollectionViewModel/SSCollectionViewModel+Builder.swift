@@ -154,17 +154,26 @@ extension SSCollectionViewModel {
         public func sections(
             _ sectionList: [any ViewModelSectionRepresentable],
             configureSection: ((_ section: any ViewModelSectionRepresentable, _ builder: Builder) -> Void)? = nil,
-            configureUnit: @escaping (_ unit: any ViewModelUnitRepresentable, _ builder: Builder) -> Void
+            configureUnit: (_ unit: any ViewModelUnitRepresentable, _ builder: Builder) -> Void
         ) -> Self {
             for section in sectionList {
-                self.section(section.sectionId) {
-                    // Allow caller to configure inset/spacings for this section
-                    configureSection?(section, self)
-                    // Then add units
-                    for unit in section.units {
-                        configureUnit(unit, self)
-                    }
+                closeCurrentSectionIfNeeded()
+                currentSectionID = section.sectionId ?? UUID().uuidString
+                currentItems.removeAll(keepingCapacity: true)
+                currentHeader = nil
+                currentFooter = nil
+                currentSectionInset = nil
+                currentMinimumLineSpacing = nil
+                currentMinimumInteritemSpacing = nil
+                hasOpenSection = true
+
+                // Allow caller to configure insets/spacings for this section
+                configureSection?(section, self)
+                // Then add units
+                for unit in section.units {
+                    configureUnit(unit, self)
                 }
+                closeCurrentSectionIfNeeded()
             }
             return self
         }

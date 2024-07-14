@@ -38,6 +38,7 @@ extension SSCollectionViewPresenter {
     ///
     /// Provides a simplified way to create compositional layouts with
     /// common patterns like multi-column grids and horizontal scrolling sections.
+    @MainActor
     public struct CompositionalLayoutConfig {
         /// Section configurations for each section in the collection view.
         var sections: [SSCompositionalLayoutSection]
@@ -141,6 +142,7 @@ extension SSCollectionViewPresenter {
     /// )
     /// collectionView.ss.setupPresenter(layoutKind: .list(config))
     /// ```
+    @MainActor
     public struct ListLayoutConfig {
         /// The visual style of the list.
         public enum Appearance: Int {
@@ -242,6 +244,7 @@ extension SSCollectionViewPresenter {
     /// `UICollectionViewDiffableDataSource.apply` uses the main queue internally,
     /// but snapshot construction is performed synchronously.
     @available(iOS 13.0, *)
+    @MainActor
     internal class DiffableSupportCore {
         /// Back-reference to the owning presenter. Set during configuration.
         internal weak var presenter: SSCollectionViewPresenter?

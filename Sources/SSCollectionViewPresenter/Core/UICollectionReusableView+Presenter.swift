@@ -16,7 +16,7 @@ extension UICollectionReusableView {
     public typealias ActionClosure = (String, Any?) -> Void
 
     private struct AssociatedKeys {
-        static var actionClosure: UInt8 = 0
+        nonisolated(unsafe) static var actionClosure: UInt8 = 0
     }
 
     /// The closure to handle actions sent from this view.
