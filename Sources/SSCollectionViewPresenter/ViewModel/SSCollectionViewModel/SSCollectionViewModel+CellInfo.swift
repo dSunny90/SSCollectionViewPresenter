@@ -12,18 +12,18 @@ extension SSCollectionViewModel {
     /// A type-erased container that holds information for a single cell,
     /// used by `SSCollectionViewPresenter` to configure and render cells
     /// in the collection view.
-    public final class CellInfo: AnyBindingStore {
+    public final class CellInfo: AnyBindingStore, @unchecked Sendable {
         /// Whether the cell is currently highlighted (touch-down state)
         public var isHighlighted: Bool = false
         /// Whether the cell is currently selected
         public var isSelected: Bool = false
 
-        private let _didHighlightBlock: (Any) -> Void
-        private let _didUnhighlightBlock: (Any) -> Void
-        private let _didSelectBlock: (Any) -> Void
-        private let _didDeselectBlock: (Any) -> Void
-        private let _willDisplayBlock: (Any) -> Void
-        private let _didEndDisplayingBlock: (Any) -> Void
+        private let _didHighlightBlock: @MainActor (Any) -> Void
+        private let _didUnhighlightBlock: @MainActor (Any) -> Void
+        private let _didSelectBlock: @MainActor (Any) -> Void
+        private let _didDeselectBlock: @MainActor (Any) -> Void
+        private let _willDisplayBlock: @MainActor (Any) -> Void
+        private let _didEndDisplayingBlock: @MainActor (Any) -> Void
 
         /// Creates a type-erased wrapper for a cell binding store.
         ///
@@ -62,6 +62,7 @@ extension SSCollectionViewModel {
 
         /// Forwards `collectionView(_:didHighlightItemAt:)`
         /// to the binder using the stored item.
+        @MainActor
         public func didHighlight(to binder: Any) {
             _didHighlightBlock(binder)
             isHighlighted = true
@@ -69,6 +70,7 @@ extension SSCollectionViewModel {
 
         /// Forwards `collectionView(_:didUnhighlightItemAt:)`
         /// to the binder using the stored item.
+        @MainActor
         public func didUnhighlight(to binder: Any) {
             _didUnhighlightBlock(binder)
             isHighlighted = false
@@ -76,6 +78,7 @@ extension SSCollectionViewModel {
 
         /// Forwards `collectionView(_:didSelectItemAt:)`
         /// to the binder using the stored item.
+        @MainActor
         public func didSelect(to binder: Any) {
             isSelected = true
             _didSelectBlock(binder)
@@ -83,6 +86,7 @@ extension SSCollectionViewModel {
 
         /// Forwards `collectionView(_:didDeselectItemAt:)`
         /// to the binder using the stored item.
+        @MainActor
         public func didDeselect(to binder: Any) {
             isSelected = false
             _didDeselectBlock(binder)
@@ -90,12 +94,14 @@ extension SSCollectionViewModel {
 
         /// Forwards `collectionView(_:willDisplay:forItemAt:)`
         /// to the binder using the stored item.
+        @MainActor
         public func willDisplay(to binder: Any) {
             _willDisplayBlock(binder)
         }
 
         /// Forwards `collectionView(_:didEndDisplaying:forItemAt:)`
         /// to the binder using the stored item.
+        @MainActor
         public func didEndDisplaying(to binder: Any) {
             _didEndDisplayingBlock(binder)
         }

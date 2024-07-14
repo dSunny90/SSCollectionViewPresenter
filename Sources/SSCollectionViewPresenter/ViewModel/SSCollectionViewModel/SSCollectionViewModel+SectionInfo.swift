@@ -30,7 +30,7 @@ extension SSCollectionViewModel {
     ///
     ///   When switching between layout types, ensure that layout-specific
     ///   properties are configured accordingly.
-    public struct SectionInfo: RandomAccessCollection, RangeReplaceableCollection, Hashable {
+    public struct SectionInfo: RandomAccessCollection, RangeReplaceableCollection, Hashable, Sendable {
         public typealias ReusableViewInfo = SSCollectionViewModel.ReusableViewInfo
 
         private let uuid: UUID = UUID()

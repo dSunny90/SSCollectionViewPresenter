@@ -142,17 +142,17 @@ extension SSCollectionViewPresenter: UICollectionViewDropDelegate {
         let dropItems = coordinator.items
         let group = DispatchGroup()
 
-        struct LoadedResult {
+        struct LoadedResult: @unchecked Sendable {
             let dragItem: UIDragItem
             let payload: Any
             let typeIdentifier: String?
         }
 
-        var loaded: [LoadedResult] = []
-        var errors: [(Error, String?)] = []
+        let state = _ExternalDropLoadState<LoadedResult>()
 
         for dropItem in dropItems {
-            let provider = dropItem.dragItem.itemProvider
+            let dragItem = dropItem.dragItem
+            let provider = dragItem.itemProvider
             let typeId = ids.first {
                 provider.hasItemConformingToTypeIdentifier($0)
             }
@@ -162,12 +162,12 @@ extension SSCollectionViewPresenter: UICollectionViewDropDelegate {
                 provider.loadItem(forTypeIdentifier: typeId) { item, error in
                     defer { group.leave() }
                     if let error {
-                        errors.append((error, typeId))
+                        state.appendError(error, typeId: typeId)
                         return
                     }
                     guard let item else { return }
-                    loaded.append(
-                        .init(dragItem: dropItem.dragItem,
+                    state.appendLoaded(
+                        .init(dragItem: dragItem,
                               payload: item,
                               typeIdentifier: typeId)
                     )
@@ -177,12 +177,12 @@ extension SSCollectionViewPresenter: UICollectionViewDropDelegate {
                 provider.loadObject(ofClass: NSString.self) { object, error in
                     defer { group.leave() }
                     if let error {
-                        errors.append((error, "public.utf8-plain-text"))
+                        state.appendError(error, typeId: "public.utf8-plain-text")
                         return
                     }
                     guard let str = object as? String else { return }
-                    loaded.append(
-                        .init(dragItem: dropItem.dragItem,
+                    state.appendLoaded(
+                        .init(dragItem: dragItem,
                               payload: str,
                               typeIdentifier: "public.utf8-plain-text")
                     )
@@ -192,43 +192,49 @@ extension SSCollectionViewPresenter: UICollectionViewDropDelegate {
             }
         }
 
-        group.notify(queue: .main) {
-            for (error, typeId) in errors {
-                if let typeId {
-                    print("⚠️ [SSCollectionViewPresenter] External drop load failed for type \(typeId): \(error.localizedDescription).")
-                } else {
-                    print("⚠️ [SSCollectionViewPresenter] External drop load failed: \(error.localizedDescription).")
+        group.notify(queue: .main) { [weak self] in
+            _assumeMainActorIsolation {
+                let (loaded, errors) = state.getResults()
+
+                for (error, typeId) in errors {
+                    if let typeId {
+                        print("⚠️ [SSCollectionViewPresenter] External drop load failed for type \(typeId): \(error.localizedDescription).")
+                    } else {
+                        print("⚠️ [SSCollectionViewPresenter] External drop load failed: \(error.localizedDescription).")
+                    }
                 }
-            }
 
-            guard !loaded.isEmpty,
-                  let count = self.viewModel?[safe: destination.section]?.count else { return }
+                guard let self, !loaded.isEmpty,
+                      let count = self.viewModel?[safe: destination.section]?.count else { return }
 
-            let startItem = min(max(0, destination.item), count)
+                let startItem = min(max(0, destination.item), count)
 
-            var cellInfos: [CellInfo] = []
-            var finalIndexPaths: [IndexPath] = []
+                var cellInfos: [CellInfo] = []
+                var finalIndexPaths: [IndexPath] = []
 
-            for (offset, result) in loaded.enumerated() {
-                let indexPath = IndexPath(item: startItem + offset,
-                                          section: destination.section)
-                if let item = externalDropHandler(result.payload, indexPath) {
-                    cellInfos.append(item)
-                    finalIndexPaths.append(indexPath)
+                for (offset, result) in loaded.enumerated() {
+                    let indexPath = IndexPath(item: startItem + offset,
+                                              section: destination.section)
+                    if let item = externalDropHandler(result.payload, indexPath) {
+                        cellInfos.append(item)
+                        finalIndexPaths.append(indexPath)
+                    }
                 }
-            }
 
-            guard !cellInfos.isEmpty else { return }
+                guard !cellInfos.isEmpty else { return }
 
-            self.insertExternalCells(
-                cellInfos,
-                startingAt: IndexPath(item: startItem,
-                                      section: destination.section),
-                in: collectionView
-            )
+                self.insertExternalCells(
+                    cellInfos,
+                    startingAt: IndexPath(item: startItem,
+                                          section: destination.section),
+                    in: collectionView
+                )
 
-            for (i, result) in loaded.enumerated() where i < finalIndexPaths.count {
-                coordinator.drop(result.dragItem, toItemAt: finalIndexPaths[i])
+                for (i, result) in loaded.enumerated()
+                    where i < finalIndexPaths.count
+                {
+                    coordinator.drop(result.dragItem, toItemAt: finalIndexPaths[i])
+                }
             }
         }
     }
@@ -322,6 +328,49 @@ extension SSCollectionViewPresenter: UICollectionViewDropDelegate {
             }
         } else if #available(iOS 13.0, *) {
             self.applySnapshot(animated: true)
+        }
+    }
+}
+
+/// Collects results from concurrent `NSItemProvider` load callbacks
+/// and returns them safely on the main thread.
+private final class _ExternalDropLoadState<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _loaded: [T] = []
+    private var _errors: [(Error, String?)] = []
+
+    func appendLoaded(_ item: T) {
+        lock.lock()
+        _loaded.append(item)
+        lock.unlock()
+    }
+
+    func appendError(_ error: Error, typeId: String?) {
+        lock.lock()
+        _errors.append((error, typeId))
+        lock.unlock()
+    }
+
+    func getResults() -> (loaded: [T], errors: [(Error, String?)]) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (_loaded, _errors)
+    }
+}
+
+/// Back-deployable equivalent of `MainActor.assumeIsolated` for iOS 12+.
+/// Asserts that the caller is already on the main queue, then executes
+/// the `@MainActor`-isolated closure synchronously.
+@inline(__always)
+private func _assumeMainActorIsolation(
+    _ body: @MainActor () -> Void
+) {
+    if #available(iOS 17.0, *) {
+        MainActor.assumeIsolated(body)
+    } else {
+        dispatchPrecondition(condition: .onQueue(.main))
+        withoutActuallyEscaping(body) { fn in
+            unsafeBitCast(fn, to: (() -> Void).self)()
         }
     }
 }

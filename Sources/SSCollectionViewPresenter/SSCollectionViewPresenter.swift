@@ -16,6 +16,7 @@ import UIKit
 ///
 /// - Note: Primarily designed for `UICollectionViewFlowLayout`, though
 ///         `UICollectionViewCompositionalLayout` is also supported.
+@MainActor
 public final class SSCollectionViewPresenter: NSObject {
     typealias SectionInfo = SSCollectionViewModel.SectionInfo
     typealias CellInfo = SSCollectionViewModel.CellInfo
