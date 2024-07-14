@@ -9,6 +9,7 @@ import UIKit
 
 @_exported import SendingState
 
+@MainActor
 extension SendingState where Base: UICollectionView {
     public typealias Builder = SSCollectionViewModel.Builder
     public typealias SectionInfo = SSCollectionViewModel.SectionInfo

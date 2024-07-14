@@ -9,10 +9,10 @@ import UIKit
 
 extension UICollectionView {
     private struct AssociatedKeys {
-        static var registeredCellIdentifiers: UInt8 = 0
-        static var registeredHeaderIdentifiers: UInt8 = 0
-        static var registeredFooterIdentifiers: UInt8 = 0
-        static var presenter: UInt8 = 0
+        nonisolated(unsafe) static var registeredCellIdentifiers: UInt8 = 0
+        nonisolated(unsafe) static var registeredHeaderIdentifiers: UInt8 = 0
+        nonisolated(unsafe) static var registeredFooterIdentifiers: UInt8 = 0
+        nonisolated(unsafe) static var presenter: UInt8 = 0
     }
 
     public var registeredCellIdentifiers: Set<String> {

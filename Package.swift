@@ -16,7 +16,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/dSunny90/SendingState.git",
-            from: "0.2.1"
+            from: "1.0.0"
         )
     ],
     targets: [
