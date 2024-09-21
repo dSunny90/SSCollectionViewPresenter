@@ -11,6 +11,7 @@ import UIKit
 ///
 /// Enables handling of selection, highlighting, and display lifecycle events.
 /// All methods are guaranteed to be called on the main thread.
+@MainActor
 public protocol InteractiveCell: InteractiveReusableView {
     /// Called when the view is highlighted (e.g., during touch-down).
     func didHighlight(with input: Input?)

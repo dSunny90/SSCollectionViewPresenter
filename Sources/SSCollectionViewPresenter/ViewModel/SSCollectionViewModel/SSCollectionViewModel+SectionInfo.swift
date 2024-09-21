@@ -30,7 +30,8 @@ extension SSCollectionViewModel {
     ///
     ///   When switching between layout types, ensure that layout-specific
     ///   properties are configured accordingly.
-    public struct SectionInfo: Hashable {
+    @MainActor
+    public struct SectionInfo: @preconcurrency Hashable, Sendable {
         // MARK: - Core Contents
         internal var items: [CellInfo]
         internal var header: ReusableViewInfo?

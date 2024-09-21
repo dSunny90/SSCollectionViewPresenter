@@ -11,6 +11,7 @@ import UIKit
 ///
 /// Enables handling of selection, highlighting, and display lifecycle events.
 /// All methods are guaranteed to be called on the main thread.
+@MainActor
 public protocol InteractiveReusableView: Configurable {
     /// Called when the view is about to appear.
     func willDisplay(with input: Input?)

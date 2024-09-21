@@ -28,7 +28,7 @@ public struct SSCompositionalLayoutSection {
         self.scrolling = scrolling
     }
 
-    public enum ScrollingBehavior: Int {
+    public enum ScrollingBehavior: Int, @unchecked Sendable {
         case none = 0
         case continuous = 1
         case continuousGroupLeadingBoundary = 2

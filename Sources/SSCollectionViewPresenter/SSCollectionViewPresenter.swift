@@ -20,6 +20,7 @@ import UIKit
 ///   - Primarily designed for `UICollectionViewFlowLayout`.
 ///     `UICollectionViewCompositionalLayout` is also supported,
 ///     but using this with `UICollectionViewFlowLayout` is recommended.
+@MainActor
 public final class SSCollectionViewPresenter: NSObject {
     typealias SectionInfo = SSCollectionViewModel.SectionInfo
     typealias CellInfo = SSCollectionViewModel.CellInfo
@@ -278,6 +279,7 @@ extension SSCollectionViewPresenter {
     }
 
     // MARK: - CompositionalLayoutConfig
+    @MainActor
     public struct CompositionalLayoutConfig {
         var sections: [SSCompositionalLayoutSection]
 
@@ -348,6 +350,7 @@ extension SSCollectionViewPresenter {
     // MARK: - DiffableSupportCore
     /// Core that encapsulates DiffableDataSource wiring for the presenter layer.
     @available(iOS 13.0, *)
+    @MainActor
     fileprivate class DiffableSupportCore {
         private var diffableDataSource: UICollectionViewDiffableDataSource<SectionInfo, CellInfo>?
         private var snapshot: NSDiffableDataSourceSnapshot<SectionInfo, CellInfo>?
@@ -914,10 +917,9 @@ fileprivate extension Collection {
 /// - Parameters:
 ///   - view: A `UIView` conforming to `EventForwardingProvider`.
 ///   - handler: The `AnyActionHandlingProvider` to receive forwarded actions.
+@MainActor
 fileprivate func assignAnyActionHandler<T: UIView & EventForwardingProvider>(
     to view: T, handler: AnyActionHandlingProvider
 ) {
-    DispatchQueue.main.async {
-        view.ss.assignAnyActionHandler(to: handler)
-    }
+    view.ss.assignAnyActionHandler(to: handler)
 }

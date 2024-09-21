@@ -22,7 +22,8 @@ extension SSCollectionViewModel {
     ///   - `CellInfo` is primarily consumed by the presenter during
     ///     data binding and rendering, and should be created by converting
     ///     user-defined `Boundable` instances into this unified type.
-    public struct CellInfo: Hashable {
+    @MainActor
+    public struct CellInfo: @preconcurrency Hashable, @unchecked Sendable {
         /// The underlying content data, type-erased as `Any`.
         public var contentData: Any? { _contentData() }
 

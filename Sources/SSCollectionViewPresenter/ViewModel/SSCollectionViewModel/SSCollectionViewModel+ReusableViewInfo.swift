@@ -21,7 +21,8 @@ extension SSCollectionViewModel {
     ///     configuration without exposing concrete types.
     ///   - It is primarily consumed by the presenter when dequeuing
     ///     and binding supplementary views.
-    public struct ReusableViewInfo: Hashable {
+    @MainActor
+    public struct ReusableViewInfo: @preconcurrency Hashable, @unchecked Sendable {
         /// The underlying content data, type-erased as `Any`.
         public var contentData: Any? { _contentData() }
 

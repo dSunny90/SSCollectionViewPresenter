@@ -20,6 +20,7 @@ fileprivate typealias SectionInfo = SSCollectionViewModel.SectionInfo
 ///     apply only when using a `UICollectionViewFlowLayout`.
 ///   - For `UICollectionViewCompositionalLayout`, the layout is defined
 ///     independently and not influenced by these `SectionInfo` properties.
+@MainActor
 public struct SSCollectionViewModel {
     /// The current page number for paginated API requests.
     /// Use this when fetching data from a page-based RESTful API
