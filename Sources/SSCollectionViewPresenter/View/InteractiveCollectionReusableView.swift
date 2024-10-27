@@ -1,5 +1,5 @@
 //
-//  InteractiveReusableView.swift
+//  InteractiveCollectionReusableView.swift
 //  SSCollectionViewPresenter
 //
 //  Created by SunSoo Jeon on 06.11.2022.
@@ -12,7 +12,7 @@ import UIKit
 /// Enables handling of selection, highlighting, and display lifecycle events.
 /// All methods are guaranteed to be called on the main thread.
 @MainActor
-public protocol InteractiveReusableView: Configurable {
+public protocol InteractiveCollectionReusableView: Configurable {
     /// Called when the view is about to appear.
     func willDisplay(with input: Input?)
 
@@ -20,9 +20,9 @@ public protocol InteractiveReusableView: Configurable {
     func didEndDisplaying(with input: Input?)
 }
 
-extension InteractiveReusableView {
+extension InteractiveCollectionReusableView {
     public func willDisplay(with input: Input?) {}
     public func didEndDisplaying(with input: Input?) {}
 }
 
-public protocol SSCollectionReusableViewProtocol: UICollectionReusableView, InteractiveReusableView {}
+public protocol SSCollectionReusableViewProtocol: UICollectionReusableView, InteractiveCollectionReusableView {}

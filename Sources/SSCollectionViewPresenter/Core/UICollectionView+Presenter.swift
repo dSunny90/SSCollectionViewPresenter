@@ -73,9 +73,8 @@ extension UICollectionView {
     /// Item size resolved from delegate (if any) or the flow layout itself.
     /// Falls back to `bounds.size` when nothing is provided.
     internal var flowLayoutItemSize: CGSize {
-        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else {
-            return bounds.size
-        }
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return bounds.size }
+
         // Prefer a visible section if we have one; otherwise use section 0.
         let section = indexPathsForVisibleItems.sorted().first?.section ?? 0
         let firstIndexPath = IndexPath(item: 0, section: section)
@@ -99,6 +98,7 @@ extension UICollectionView {
     /// Minimum line spacing resolved from delegate -> layout default.
     internal var flowLayoutLineSpacing: CGFloat {
         guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+
         let section = indexPathsForVisibleItems.sorted().first?.section ?? 0
 
         // 1. Delegate override?
@@ -112,6 +112,7 @@ extension UICollectionView {
     /// Section inset resolved from delegate -> layout default -> .zero.
     internal var flowLayoutSectionInset: UIEdgeInsets {
         guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return .zero }
+
         let section = indexPathsForVisibleItems.sorted().first?.section ?? 0
 
         // 1. Delegate override?
@@ -132,13 +133,16 @@ extension UICollectionView {
 
     public func registerHeader(_ classType: Any.Type, reusableIdentifier: String? = nil, bundle: Bundle? = nil) {
         guard let headerType = classType as? UICollectionReusableView.Type else { return }
+
         let identifier: String
         if let reusableIdentifier {
             identifier = reusableIdentifier
         } else {
             identifier = String(describing: headerType)
         }
+
         guard registeredHeaderIdentifiers.contains(identifier) == false else { return }
+
         registeredHeaderIdentifiers.insert(identifier)
         if isNibFileExists(identifier, bundle: bundle) {
             let nib = UINib(nibName: identifier, bundle: bundle)
@@ -150,13 +154,16 @@ extension UICollectionView {
 
     public func registerFooter(_ classType: Any.Type, reusableIdentifier: String? = nil, bundle: Bundle? = nil) {
         guard let footerType = classType as? UICollectionReusableView.Type else { return }
+
         let identifier: String
         if let reusableIdentifier {
             identifier = reusableIdentifier
         } else {
             identifier = String(describing: footerType)
         }
+
         guard registeredFooterIdentifiers.contains(identifier) == false else { return }
+
         registeredFooterIdentifiers.insert(identifier)
         if isNibFileExists(identifier, bundle: bundle) {
             let nib = UINib(nibName: identifier, bundle: bundle)
@@ -168,13 +175,16 @@ extension UICollectionView {
 
     public func registerCell(_ classType: Any.Type, reusableIdentifier: String? = nil, for bundle: Bundle? = nil) {
         guard let cellType = classType as? UICollectionViewCell.Type else { return }
+
         let identifier: String
         if let reusableIdentifier {
             identifier = reusableIdentifier
         } else {
             identifier = String(describing: cellType)
         }
+
         guard registeredCellIdentifiers.contains(identifier) == false else { return }
+
         registeredCellIdentifiers.insert(identifier)
         if isNibFileExists(identifier, bundle: bundle) {
             let nib = UINib(nibName: identifier, bundle: bundle)
@@ -426,7 +436,8 @@ extension UICollectionView {
 
             // Clamp/wrap when over-scrolling past content end.
             let maxOffset = contentSize.width - pageWidth + contentInset.right + sectionInset.right
-            guard nextOffset <= contentSize.width else {
+            guard nextOffset <= contentSize.width
+            else {
                 setContentOffset(CGPoint(x: sectionInset.left, y: 0), animated: true)
                 return
             }
@@ -456,10 +467,12 @@ extension UICollectionView {
             }
 
             let maxOffset = contentSize.height - pageHeight + contentInset.bottom + sectionInset.bottom
-            guard nextOffset <= contentSize.height else {
+            guard nextOffset <= contentSize.height
+            else {
                 setContentOffset(CGPoint(x: 0, y: sectionInset.top), animated: true)
                 return
             }
+
             setContentOffset(CGPoint(x: 0, y: min(nextOffset, maxOffset)), animated: true)
         }
     }

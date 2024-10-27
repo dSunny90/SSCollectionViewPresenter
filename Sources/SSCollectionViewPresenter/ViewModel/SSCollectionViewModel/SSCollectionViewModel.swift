@@ -20,8 +20,19 @@ fileprivate typealias SectionInfo = SSCollectionViewModel.SectionInfo
 ///     apply only when using a `UICollectionViewFlowLayout`.
 ///   - For `UICollectionViewCompositionalLayout`, the layout is defined
 ///     independently and not influenced by these `SectionInfo` properties.
-@MainActor
-public struct SSCollectionViewModel {
+public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCollection {
+    // MARK: - RandomAccessCollection
+    public typealias Index = Int
+    public typealias Element = SectionInfo
+
+    public var startIndex: Int { sections.startIndex }
+    public var endIndex: Int { sections.endIndex }
+
+    // MARK: - Core Contents
+    /// The current sections to be displayed in the collection view.
+    /// This gets updated whenever new paginated data is fetched.
+    internal var sections: [SectionInfo] = []
+
     /// The current page number for paginated API requests.
     /// Use this when fetching data from a page-based RESTful API
     /// to update your view model.
@@ -32,19 +43,16 @@ public struct SSCollectionViewModel {
     /// should be triggered.
     public var hasNext: Bool = false
 
-    /// The current sections to be displayed in the collection view.
-    /// This gets updated whenever new paginated data is fetched.
-    internal var sections: [SectionInfo] = []
-
+    // MARK: - Init.
     public init(sections: [SectionInfo] = [], hasNext: Bool = false, page: Int = 0) {
         self.sections = sections
         self.hasNext = hasNext
         self.page = page
     }
 
-    // MARK: - Section Query
-    /// Get the number of sections.
-    public func count() -> Int { sections.count }
+    public init() {
+        self.init(sections: [])
+    }
 
     /// Get a section at the specified index.
     public func sectionInfo(at index: Int) -> SectionInfo? {
@@ -52,71 +60,45 @@ public struct SSCollectionViewModel {
         return sections[index]
     }
 
-    /// Returns the first section whose identifier matches the given string.
-    public func filter(
-        whereIdentifierIs identifier: String
-    ) -> [SectionInfo] {
-        return sections.filter { $0.identifier == identifier }
+    // MARK: - RandomAccessCollection Methods
+    public func index(after i: Int) -> Int {
+        sections.index(after: i)
     }
 
-    /// Returns all sections whose identifiers match the given string.
-    public func first(
-        whereIdentifierIs identifier: String
-    ) -> SectionInfo? {
-        return sections.first { $0.identifier == identifier }
+    public func index(before i: Int) -> Int {
+        sections.index(before: i)
     }
 
-    /// Returns the index of the first section with the given identifier.
-    public func firstIndex(whereIdentifierIs identifier: String) -> Int? {
-        return sections.firstIndex { $0.identifier == identifier }
+    // MARK: - RangeReplaceableCollection
+    public mutating func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C)
+        where C: Collection, C.Element == SectionInfo {
+            sections.replaceSubrange(subrange, with: newElements)
     }
 
-    // MARK: - Section Mutation
-    /// Appends a single section to the collection view.
-    public mutating func append(_ newSection: SectionInfo) {
-        sections.append(newSection)
-    }
-
-    /// Appends a collection of sections to the collection view.
-    public mutating func append(contentsOf newSections: [SectionInfo]) {
-        sections.append(contentsOf: newSections)
-    }
-
-    /// Inserts a section at the specified index.
-    public mutating func insert(_ newSection: SectionInfo, at index: Int) {
-        sections.insert(newSection, at: index)
-    }
-
-    /// Removes an section at the given index.
-    @discardableResult
-    public mutating func remove(at index: Int) -> SectionInfo {
-        return sections.remove(at: index)
-    }
-
-    /// Removes all items.
-    public mutating func removeAll(keepingCapacity: Bool = false) {
-        sections.removeAll(keepingCapacity: keepingCapacity)
-    }
-
-    /// Removes the first item that matches a given predicate.
-    @discardableResult
-    public mutating func removeFirst(
-        where shouldRemove: (SectionInfo) -> Bool
-    ) -> SectionInfo? {
-        if let index = sections.firstIndex(where: shouldRemove) {
-            return sections.remove(at: index)
-        }
-        return nil
-    }
-
-    /// Replaces item at index with a new boundable.
-    public mutating func replace(at index: Int, with newSection: SectionInfo) {
-        sections[index] = newSection
-    }
-
+    // MARK: - RandomAccessCollection Subscripts
     public subscript(index: Int) -> SectionInfo {
         get { sections[index] }
         set { sections[index] = newValue }
     }
 
+    // MARK: - Operators Overloading
+    public static func + (lhs: SSCollectionViewModel, rhs: SSCollectionViewModel) -> SSCollectionViewModel {
+        SSCollectionViewModel(sections: lhs.sections + rhs.sections)
+    }
+
+    public static func += (lhs: inout SSCollectionViewModel, rhs: SSCollectionViewModel) {
+        lhs.sections += rhs.sections
+    }
+
+    public static func + (lhs: SSCollectionViewModel, rhs: SectionInfo) -> SSCollectionViewModel {
+        var new = lhs
+        new.append(rhs)
+        return new
+    }
+
+    public static func + (lhs: SSCollectionViewModel, rhs: [SectionInfo]) -> SSCollectionViewModel {
+        var new = lhs
+        new.append(contentsOf: rhs)
+        return new
+    }
 }

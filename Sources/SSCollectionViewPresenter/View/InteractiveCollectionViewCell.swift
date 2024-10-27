@@ -1,5 +1,5 @@
 //
-//  InteractiveCell.swift
+//  InteractiveCollectionViewCell.swift
 //  SSCollectionViewPresenter
 //
 //  Created by SunSoo Jeon on 06.11.2022.
@@ -12,7 +12,7 @@ import UIKit
 /// Enables handling of selection, highlighting, and display lifecycle events.
 /// All methods are guaranteed to be called on the main thread.
 @MainActor
-public protocol InteractiveCell: InteractiveReusableView {
+public protocol InteractiveCollectionViewCell: InteractiveCollectionReusableView {
     /// Called when the view is highlighted (e.g., during touch-down).
     func didHighlight(with input: Input?)
 
@@ -26,11 +26,11 @@ public protocol InteractiveCell: InteractiveReusableView {
     func didDeselect(with input: Input?)
 }
 
-extension InteractiveCell {
+extension InteractiveCollectionViewCell {
     public func didHighlight(with input: Input?) {}
     public func didUnhighlight(with input: Input?) {}
     public func didSelect(with input: Input?) {}
     public func didDeselect(with input: Input?) {}
 }
 
-public protocol SSCollectionViewCellProtocol: UICollectionViewCell, InteractiveCell {}
+public protocol SSCollectionViewCellProtocol: UICollectionViewCell, InteractiveCollectionViewCell {}

@@ -57,6 +57,171 @@ extension SendingState where Base: UICollectionView {
         return base.presenter?.viewModel
     }
 
+    @MainActor
+    public func appendSection(_ section: SSCollectionViewModel.SectionInfo) {
+        base.presenter?.viewModel = base.presenter?.viewModel.map { $0 + section }
+    }
+
+    @MainActor
+    public func appendSections(contentsOf sections: [SSCollectionViewModel.SectionInfo]) {
+        base.presenter?.viewModel = base.presenter?.viewModel.map { $0 + sections }
+    }
+
+    @MainActor
+    public func appendItem(_ item: SSCollectionViewModel.CellInfo, toSection section: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              section < viewModel.count else { return }
+
+        viewModel[section].append(item)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func appendItems(contentsOf items: [SSCollectionViewModel.CellInfo], toSection section: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              section < viewModel.count else { return }
+
+        viewModel[section].append(contentsOf: items)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func appendItem(_ item: SSCollectionViewModel.CellInfo, firstSectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+
+        guard let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }) else { return }
+
+        viewModel.sections[sectionIndex].append(item)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func appendItems(contentsOf items: [SSCollectionViewModel.CellInfo], firstSectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+
+        guard let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }) else { return }
+
+        viewModel.sections[sectionIndex].append(contentsOf: items)
+        base.presenter?.viewModel = viewModel
+    }
+
+
+    @MainActor
+    public func appendItemToLastSection(_ item: SSCollectionViewModel.CellInfo) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.isEmpty == false else { return }
+
+        let lastIndex = viewModel.count - 1
+        viewModel[lastIndex].append(item)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func appendItemsToLastSection(contentsOf items: [SSCollectionViewModel.CellInfo]) {
+        guard var viewModel = base.presenter?.viewModel,
+              viewModel.isEmpty == false else { return }
+
+        let lastIndex = viewModel.count - 1
+        viewModel[lastIndex].append(contentsOf: items)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func insertItem(_ item: SSCollectionViewModel.CellInfo, at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item <= viewModel[indexPath.section].count else { return }
+
+        viewModel[indexPath.section].insert(item, at: indexPath.item)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func insertItems(_ items: [SSCollectionViewModel.CellInfo], at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item <= viewModel[indexPath.section].count else { return }
+
+        viewModel[indexPath.section].insert(contentsOf: items, at: indexPath.item)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func deleteItem(at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.count,
+              indexPath.item < viewModel[indexPath.section].count else { return }
+
+        viewModel[indexPath.section].remove(at: indexPath.item)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func deleteItems(at indexPaths: [IndexPath]) {
+        guard var viewModel = base.presenter?.viewModel else { return }
+
+        let sortedIndexPaths = indexPaths.sorted {
+            $0.section > $1.section ||
+            ($0.section == $1.section && $0.item > $1.item)
+        }
+
+        for indexPath in sortedIndexPaths {
+            guard indexPath.section < viewModel.count,
+                  indexPath.item < viewModel[indexPath.section].count else { continue }
+            viewModel[indexPath.section].remove(at: indexPath.item)
+        }
+
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func deleteAllItems(inSection section: Int) {
+        guard var viewModel = base.presenter?.viewModel,
+              section < viewModel.count else { return }
+
+        viewModel[section].removeAll()
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func deleteItem(atRow row: Int, firstSectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.firstIndex(where: { $0.identifier == identifier }),
+              row < viewModel[sectionIndex].count else { return }
+
+        viewModel[sectionIndex].remove(at: row)
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func deleteAllItems(firstSectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.firstIndex(where: { $0.identifier == identifier }) else { return }
+
+        viewModel[sectionIndex].removeAll()
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func updateItem(_ item: SSCollectionViewModel.CellInfo, at indexPath: IndexPath) {
+        guard var viewModel = base.presenter?.viewModel,
+              indexPath.section < viewModel.sections.count,
+              indexPath.row < viewModel.sections[indexPath.section].count else { return }
+
+        viewModel[indexPath.section][indexPath.row] = item
+        base.presenter?.viewModel = viewModel
+    }
+
+    @MainActor
+    public func updateItem(_ item: SSCollectionViewModel.CellInfo, atRow row: Int, firstSectionIdentifier identifier: String) {
+        guard var viewModel = base.presenter?.viewModel,
+              let sectionIndex = viewModel.sections.firstIndex(where: { $0.identifier == identifier }),
+              row < viewModel.sections[sectionIndex].count else { return }
+
+        viewModel[sectionIndex][row] = item
+        base.presenter?.viewModel = viewModel
+    }
+
     /// Sets a block to be called when requesting the next page of content.
     /// - Parameter block: Closure with current view model for paging.
     @MainActor

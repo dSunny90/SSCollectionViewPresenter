@@ -30,13 +30,19 @@ extension SSCollectionViewModel {
     ///
     ///   When switching between layout types, ensure that layout-specific
     ///   properties are configured accordingly.
-    @MainActor
-    public struct SectionInfo: @preconcurrency Hashable, Sendable {
+    public struct SectionInfo: RandomAccessCollection, RangeReplaceableCollection, Hashable, Sendable {
+        // MARK: - RandomAccessCollection
+        public typealias Index = Int
+        public typealias Element = CellInfo
+
+        public var startIndex: Int { items.startIndex }
+        public var endIndex: Int { items.endIndex }
+
         // MARK: - Core Contents
         internal var items: [CellInfo]
         internal var header: ReusableViewInfo?
         internal var footer: ReusableViewInfo?
-        internal var identifier: String?
+        public var identifier: String?
 
         // MARK: - FlowLayout Options
         public var sectionInsets: UIEdgeInsets?
@@ -45,6 +51,7 @@ extension SSCollectionViewModel {
 
         private let uuid: UUID = UUID()
 
+        // MARK: - Init.
         public init(
             items: [CellInfo] = [],
             header: ReusableViewInfo? = nil,
@@ -57,9 +64,9 @@ extension SSCollectionViewModel {
             self.identifier = identifier
         }
 
-        // MARK: - Cell Query
-        /// Get the number of cells.
-        public func count() -> Int { items.count }
+        public init() {
+            self.init(items: [])
+        }
 
         /// Get a cell info at the specified index.
         public func cellInfo(at index: Int) -> CellInfo? {
@@ -73,76 +80,23 @@ extension SSCollectionViewModel {
         /// Get a header info at the specified index.
         public func footerInfo() -> ReusableViewInfo? { footer }
 
-        /// Returns the first item whose identifier matches the given string.
-        public func filter(
-            whereIdentifierIs identifier: String
-        ) -> [CellInfo] {
-            return items.filter { $0.identifier == identifier }
+        // MARK: - RandomAccessCollection Methods
+        public func index(after i: Int) -> Int {
+            items.index(after: i)
         }
 
-        /// Returns all items whose identifiers match the given string.
-        public func first(
-            whereIdentifierIs identifier: String
-        ) -> CellInfo? {
-            return items.first { $0.identifier == identifier }
+        public func index(before i: Int) -> Int {
+            items.index(before: i)
         }
 
-        /// Returns the index of the first item with the given identifier.
-        public func firstIndex(whereIdentifierIs identifier: String) -> Int? {
-            return items.firstIndex { $0.identifier == identifier }
+        // MARK: - RangeReplaceableCollection
+        public mutating func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C)
+            where C: Collection, C.Element == CellInfo
+        {
+            items.replaceSubrange(subrange, with: newElements)
         }
 
-        // MARK: - Cell Mutation
-        /// Appends a single boundable item to the section.
-        public mutating func append<T: Boundable>(_ newItem: T)
-        where T.Binder: InteractiveCell, T.Binder.Input == T.DataType {
-            items.append(CellInfo(newItem))
-        }
-
-        /// Appends a collection of already-erased boundables to the section.
-        public mutating func append(
-            contentsOf newItems: [CellInfo]
-        ) {
-            items.append(contentsOf: newItems)
-        }
-
-        /// Inserts a boundable at the specified index.
-        public mutating func insert<T: Boundable>(_ newItem: T, at index: Int)
-        where T.Binder: InteractiveCell, T.Binder.Input == T.DataType {
-            items.insert(CellInfo(newItem), at: index)
-        }
-
-        /// Removes an item at the given index.
-        @discardableResult
-        public mutating func remove(
-            at index: Int
-        ) -> CellInfo {
-            return items.remove(at: index)
-        }
-
-        /// Removes all items.
-        public mutating func removeAll(keepingCapacity: Bool = false) {
-            items.removeAll(keepingCapacity: keepingCapacity)
-        }
-
-        /// Removes the first item that matches a given predicate.
-        @discardableResult
-        public mutating func removeFirst(
-            where shouldRemove: (CellInfo) -> Bool
-        ) -> CellInfo? {
-            if let index = items.firstIndex(where: shouldRemove) {
-                return items.remove(at: index)
-            }
-            return nil
-        }
-
-        /// Replaces item at index with a new boundable.
-        public mutating func replace<T: Boundable>(at index: Int,
-                                                   with newItem: T)
-        where T.Binder: InteractiveCell, T.Binder.Input == T.DataType {
-            items[index] = CellInfo(newItem)
-        }
-
+        // MARK: - RandomAccessCollection Subscripts
         public subscript(index: Int) -> CellInfo {
             get { items[index] }
             set { items[index] = newValue }
@@ -155,6 +109,27 @@ extension SSCollectionViewModel {
 
         public static func == (lhs: Self, rhs: Self) -> Bool {
             return lhs.uuid == rhs.uuid
+        }
+
+        // MARK: - Operators Overloading
+        public static func + (lhs: SectionInfo, rhs: SectionInfo) -> SectionInfo {
+            SectionInfo(items: lhs.items + rhs.items)
+        }
+
+        public static func += (lhs: inout SectionInfo, rhs: SectionInfo) {
+            lhs.items += rhs.items
+        }
+
+        public static func + (lhs: SectionInfo, rhs: CellInfo) -> SectionInfo {
+            var new = lhs
+            new.append(rhs)
+            return new
+        }
+
+        public static func + (lhs: SectionInfo, rhs: [CellInfo]) -> SectionInfo {
+            var new = lhs
+            new.append(contentsOf: rhs)
+            return new
         }
     }
 }
