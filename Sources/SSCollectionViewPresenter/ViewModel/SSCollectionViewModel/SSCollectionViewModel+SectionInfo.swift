@@ -133,3 +133,114 @@ extension SSCollectionViewModel {
         }
     }
 }
+
+public extension SSCollectionViewModel.SectionInfo {
+    /// Appends a cell info to the end of the section.
+    ///
+    /// - Parameters:
+    ///   - model: Optional data model to bind to the cell's view model.
+    ///   - viewModel: A `Boundable` view model whose `Binder` conforms to
+    ///     `SSCollectionViewCellProtocol`.
+    mutating func appendCellInfo<T>(model: T.DataType?, viewModel: T)
+    where T: Boundable, T.Binder: SSCollectionViewCellProtocol
+    {
+        var vm = viewModel
+        vm.contentData = model
+        append(SSCollectionViewModel.CellInfo(vm))
+    }
+
+    /// Inserts a cell info at the specified index.
+    ///
+    /// - Parameters:
+    ///   - index: Target index within `startIndex...endIndex`.
+    ///   - model: Optional data model to bind to the cell's view model.
+    ///   - viewModel: A `Boundable` view model whose `Binder` conforms to
+    ///     `SSCollectionViewCellProtocol`.
+    ///
+    /// - Note: No-op if `index` is outside `startIndex...endIndex`.
+    mutating func insertCellInfo<T>(
+        at index: Int,
+        model: T.DataType?,
+        viewModel: T
+    ) where T: Boundable, T.Binder: SSCollectionViewCellProtocol {
+        guard (startIndex...endIndex).contains(index) else { return }
+        var vm = viewModel
+        vm.contentData = model
+        items.insert(SSCollectionViewModel.CellInfo(vm), at: index)
+    }
+
+    /// Updates an existing cell info at the specified index.
+    ///
+    /// - Parameters:
+    ///   - index: The index of the cell to update.
+    ///   - model: Optional data model to bind to the cell's view model.
+    ///   - viewModel: A `Boundable` view model whose `Binder` conforms to
+    ///     `SSCollectionViewCellProtocol`.
+    ///
+    /// - Note: No-op if `index` is out of bounds.
+    mutating func updateCellInfo<T>(
+        at index: Int,
+        model: T.DataType?,
+        viewModel: T
+    ) where T: Boundable, T.Binder: SSCollectionViewCellProtocol {
+        guard items.indices.contains(index) else { return }
+        var vm = viewModel
+        vm.contentData = model
+        items[index] = SSCollectionViewModel.CellInfo(vm)
+    }
+
+    /// Upserts a cell info at the specified index.
+    ///
+    /// - Behavior:
+    ///   - If `index` is within current indices, updates the cell.
+    ///   - If `index` equals `endIndex`, appends the cell.
+    ///   - Otherwise, performs no operation.
+    ///
+    /// - Parameters:
+    ///   - index: Target index for update or insertion.
+    ///   - model: Optional data model to bind to the cell's view model.
+    ///   - viewModel: A `Boundable` view model whose `Binder` conforms to
+    ///     `SSCollectionViewCellProtocol`.
+    mutating func upsertCellInfo<T>(
+        at index: Int,
+        model: T.DataType?,
+        viewModel: T
+    ) where T: Boundable, T.Binder: SSCollectionViewCellProtocol {
+        if items.indices.contains(index) {
+            updateCellInfo(at: index, model: model, viewModel: viewModel)
+        } else if index == endIndex {
+            appendCellInfo(model: model, viewModel: viewModel)
+        } else {
+            // Out of range; ignore
+            return
+        }
+    }
+
+    /// Sets the section's header reusable view information.
+    ///
+    /// - Parameters:
+    ///   - model: Optional data model intended for the header view.
+    ///   - viewModel: A `Boundable` view model whose `Binder` conforms to
+    ///     `SSCollectionReusableViewProtocol`.
+    mutating func setHeaderInfo<T>(model: T.DataType?, viewModel: T)
+        where T: Boundable, T.Binder: SSCollectionReusableViewProtocol
+    {
+        var vm = viewModel
+        vm.contentData = model
+        header = SSCollectionViewModel.ReusableViewInfo(vm)
+    }
+
+    /// Sets the section's footer reusable view information.
+    ///
+    /// - Parameters:
+    ///   - model: Optional data model intended for the footer view.
+    ///   - viewModel: A `Boundable` view model whose `Binder` conforms to
+    ///     `SSCollectionReusableViewProtocol`.
+    mutating func setFooterInfo<T>(model: T.DataType?, viewModel: T)
+        where T: Boundable, T.Binder: SSCollectionReusableViewProtocol
+    {
+        var vm = viewModel
+        vm.contentData = model
+        footer = SSCollectionViewModel.ReusableViewInfo(vm)
+    }
+}
