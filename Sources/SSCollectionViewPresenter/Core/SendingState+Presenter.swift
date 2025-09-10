@@ -312,4 +312,148 @@ extension SendingState where Base: UICollectionView {
     public func applySnapshot(animated: Bool) {
         base.presenter?.applySnapshot(animated: animated)
     }
+
+    /// Builds a new `SSCollectionViewModel` using a builder pattern and assigns
+    /// it to the presenter.
+    ///
+    /// This method replaces any existing view model. After calling this method,
+    /// you must manually refresh the UI by calling `collectionView.reloadData()`
+    /// or `collectionView.ss.applySnapshot(animated:)`.
+    ///
+    /// # Example
+    /// ```swift
+    /// collectionView.ss.buildViewModel { builder in
+    ///     builder.section() {
+    ///         builder.cell(
+    ///             model: result.eventBanner,
+    ///             viewModel: EventBannerViewModel()
+    ///         )
+    ///     }
+    ///     builder.section() {
+    ///         builder.cells(
+    ///             models: result.mainBannerList,
+    ///             viewModel: MainBannerListViewModel()
+    ///         )
+    ///     }
+    ///     builder.section("productList") {
+    ///         builder.header(
+    ///             model: result.productHeaderInfo,
+    ///             viewModel: ProductHeaderViewModel()
+    ///         )
+    ///         builder.footer(
+    ///             model: result.productFooterInfo,
+    ///             viewModel: ProductFooterViewModel()
+    ///         )
+    ///         builder.cells(
+    ///             models: result.productList,
+    ///             viewModel: ProductViewModel()
+    ///         )
+    ///     }
+    /// }
+    ///
+    /// // Refresh the UI
+    /// collectionView.ss.applySnapshot(animated: true)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - page: The current page number for pagination. Default is `0`.
+    ///   - hasNext: Whether more data is available for pagination.
+    ///              Default is `false`.
+    ///   - build: A closure that receives a `Builder` instance for constructing
+    ///            sections and items.
+    ///
+    /// - Returns: The newly built `SSCollectionViewModel` that was assigned to
+    ///            the presenter.
+    @MainActor
+    @discardableResult
+    public func buildViewModel(
+        page: Int = 0,
+        hasNext: Bool = false,
+        _ build: (SSCollectionViewModel.Builder) -> Void
+    ) -> SSCollectionViewModel {
+        let builder = SSCollectionViewModel.Builder()
+        build(builder)
+        let model = builder.build(page: page, hasNext: hasNext)
+        base.presenter?.viewModel = model
+        return model
+    }
+
+    /// Extends the current view model by appending new sections and items.
+    ///
+    /// This method is designed for pagination scenarios where you want to add
+    /// content to existing data rather than replacing it entirely.
+    ///
+    /// **Merge behavior:**
+    /// - If a section with the same identifier exists, new items are appended
+    ///   to that section
+    /// - Headers and footers are replaced if provided in the new content
+    /// - If a section identifier is new, the entire section is appended
+    ///
+    /// After calling this method, you must manually refresh the UI by calling
+    /// `collectionView.reloadData()`
+    /// or `collectionView.ss.applySnapshot(animated:)`.
+    ///
+    /// # Example
+    /// ```swift
+    /// // Load next page of products
+    /// collectionView.ss.extendViewModel(
+    ///     page: currentPage + 1,
+    ///     hasNext: response.hasNext
+    /// ) { builder in
+    ///     builder.section("productList") {
+    ///         builder.cells(
+    ///             models: response.productList,
+    ///             viewModel: ProductViewModel()
+    ///         )
+    ///     }
+    /// }
+    ///
+    /// // Refresh the UI
+    /// collectionView.ss.applySnapshot(animated: true)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - page: The current page number for pagination. Default is `0`.
+    ///   - hasNext: Whether more data is available for pagination.
+    ///              Default is `false`.
+    ///   - build: A closure that receives a `Builder` instance for constructing
+    ///            additional sections and items.
+    ///
+    /// - Returns: The merged `SSCollectionViewModel` after appending
+    ///            the new content.
+    @MainActor
+    @discardableResult
+    public func extendViewModel(
+        page: Int = 0,
+        hasNext: Bool = false,
+        _ build: (SSCollectionViewModel.Builder) -> Void
+    ) -> SSCollectionViewModel {
+        let builder = SSCollectionViewModel.Builder()
+        build(builder)
+
+        var model = base.presenter?.viewModel ?? SSCollectionViewModel(sections: [])
+        model.page = page
+        model.hasNext = hasNext
+
+        for section in builder.build().sections {
+            if let idx = model.firstIndex(where: { $0.identifier == section.identifier }) {
+                // Append items to existing section
+                model.sections[idx].items.append(contentsOf: section.items)
+
+                // Override header/footer if present
+                if let header = section.header {
+                    model.sections[idx].header = header
+                }
+                if let footer = section.footer {
+                    model.sections[idx].footer = footer
+                }
+            } else {
+                // Append new section
+                model.append(section)
+            }
+        }
+
+        base.presenter?.viewModel = model
+        return model
+    }
 }
