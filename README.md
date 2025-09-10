@@ -184,6 +184,44 @@ collectionView.ss.setAutoRolling()
 collectionView.ss.setPagingEnabled(true, isAlignCenter: true)
 ```
 
+## Swift 6 Migration
+
+> **Background.** In [`SendingState`](https://github.com/dSunny90/SendingState), Boundable now conforms to `Sendable`.  
+> Therefore, any ViewModel you bind through `SSCollectionViewPresenter` **must be `Sendable`**.
+
+### What this means for your ViewModels
+
+- Struct/enum ViewModels (recommended): Prefer value types so `Sendable` is automatic.
+- Class-based ViewModels: Either
+  - declare `@unchecked Sendable` and guard all mutable state (e.g., `NSLock`, `OSAllocatedUnfairLock`, or move shared state into an `actor`), or
+  - refactor to a `struct`/`actor`.
+
+> Keep binding data UI-free. Do not store UIKit objects inside `Sendable` ViewModels; apply UI on `@MainActor` in the view/cell.
+
+### Minimal class example
+
+```swift
+public final class MyViewModel: @unchecked Sendable, Boundable {
+    private let lock = NSLock()
+    private var _contentData: MyModel?
+    public var binderType: MyCell.Type { MyCell.self }
+
+    public var contentData: MyModel? {
+        get { lock.lock(); defer { lock.unlock() }; return _contentData }
+        set { lock.lock(); _contentData = newValue; lock.unlock() }
+    }
+}
+```
+
+### Value type ViewModel
+
+```swift
+public struct MyViewModel: Boundable {
+    public let contentData: MyModel?
+    public var binderType: MyCell.Type { MyCell.self }
+}
+```
+
 ---
 
 ## Installation
@@ -196,13 +234,13 @@ SSCollectionViewPresenter is available via Swift Package Manager.
 2. Go to File > Add Packages…
 3. Enter the URL:  
 ```
-https://github.com/dsunny90/SSCollectionViewPresenter
+https://github.com/dSunny90/SSCollectionViewPresenter
 ```
 4. Select the version and finish
 
 ### Using Package.swift:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/dsunny90/SSCollectionViewPresenter", from: "1.0.0")
+    .package(url: "https://github.com/dSunny90/SSCollectionViewPresenter", from: "1.0.1")
 ]
 ```

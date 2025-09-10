@@ -21,8 +21,7 @@ extension SSCollectionViewModel {
     ///     configuration without exposing concrete types.
     ///   - It is primarily consumed by the presenter when dequeuing
     ///     and binding supplementary views.
-    @MainActor
-    public struct ReusableViewInfo: @preconcurrency Hashable, @unchecked Sendable {
+    public struct ReusableViewInfo: Hashable, @unchecked Sendable {
         /// The underlying content data, type-erased as `Any`.
         public var contentData: Any? { _contentData() }
 
@@ -40,8 +39,8 @@ extension SSCollectionViewModel {
         private let _bindingBlock: (Any) -> Void
         private let _sizeBlock: ((CGSize) -> CGSize)?
 
-        private let _willDisplayBlock: (Any) -> Void
-        private let _didEndDisplayingBlock: (Any) -> Void
+        private let _willDisplayBlock: @MainActor (Any) -> Void
+        private let _didEndDisplayingBlock: @MainActor (Any) -> Void
 
         private let _identifier: () -> String?
 
@@ -49,13 +48,13 @@ extension SSCollectionViewModel {
         ///
         /// - Parameter boundable: The concrete `Boundable` to wrap.
         public init<T: Boundable>(_ boundable: T)
-        where T.Binder: InteractiveReusableView, T.Binder.Input == T.DataType {
+            where T.Binder: InteractiveCollectionReusableView, T.Binder.Input == T.DataType
+        {
             _contentData = { boundable.contentData }
             _binderType = T.Binder.self
             _bindingBlock = { anyBinder in
                 guard let concreteBinder = anyBinder as? T.Binder,
-                      let input = boundable.contentData
-                else { return }
+                      let input = boundable.contentData else { return }
                 concreteBinder.configurer(concreteBinder, input)
             }
             _sizeBlock = { constrainedSize in
@@ -66,14 +65,12 @@ extension SSCollectionViewModel {
             }
             _willDisplayBlock = { anyBinder in
                 guard let cell = anyBinder as? T.Binder,
-                      let input = boundable.contentData
-                else { return }
+                      let input = boundable.contentData else { return }
                 cell.willDisplay(with: input)
             }
             _didEndDisplayingBlock = { anyBinder in
                 guard let cell = anyBinder as? T.Binder,
-                      let input = boundable.contentData
-                else { return }
+                      let input = boundable.contentData else { return }
                 cell.didEndDisplaying(with: input)
             }
             _identifier = { boundable.identifier }
@@ -90,10 +87,12 @@ extension SSCollectionViewModel {
             return _sizeBlock?(size) ?? .zero
         }
 
+        @MainActor
         public func willDisplay(to binder: Any) {
             _willDisplayBlock(binder)
         }
 
+        @MainActor
         public func didEndDisplaying(to binder: Any) {
             _didEndDisplayingBlock(binder)
         }

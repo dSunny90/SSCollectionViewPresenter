@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/dSunny90/SendingState.git",
       "state" : {
-        "revision" : "b806ef0ca2931950b111d13c9fcdedd3c25e7a85",
-        "version" : "1.0.0"
+        "revision" : "6677c5924a9aeb3d064de904a488916c3d49f2ae",
+        "version" : "1.0.1"
       }
     }
   ],
