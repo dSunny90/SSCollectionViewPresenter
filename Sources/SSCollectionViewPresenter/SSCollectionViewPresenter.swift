@@ -378,7 +378,7 @@ extension SSCollectionViewPresenter {
                 if let actionHandler,
                    let aCell = cell as? (UIView & EventForwardingProvider)
                 {
-                    assignAnyActionHandler(to: aCell, handler: actionHandler)
+                    actionHandler.attach(to: aCell)
                 }
                 return cell
             }
@@ -405,8 +405,7 @@ extension SSCollectionViewPresenter {
                     if let actionHandler,
                        let aView = v as? (UIView & EventForwardingProvider)
                     {
-                        assignAnyActionHandler(to: aView,
-                                               handler: actionHandler)
+                        actionHandler.attach(to: aView)
                     }
                     view = v
                 case UICollectionView.elementKindSectionFooter:
@@ -422,8 +421,7 @@ extension SSCollectionViewPresenter {
                     if let actionHandler,
                        let aView = v as? (UIView & EventForwardingProvider)
                     {
-                        assignAnyActionHandler(to: aView,
-                                               handler: actionHandler)
+                        actionHandler.attach(to: aView)
                     }
                     view = v
                 default:
@@ -515,7 +513,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         if let actionHandler,
            let aCell = cell as? (UIView & EventForwardingProvider)
         {
-            assignAnyActionHandler(to: aCell, handler: actionHandler)
+            actionHandler.attach(to: aCell)
         }
         return cell
     }
@@ -547,7 +545,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
         if let actionHandler,
            let aView = view as? (UIView & EventForwardingProvider)
         {
-            assignAnyActionHandler(to: aView, handler: actionHandler)
+            actionHandler.attach(to: aView)
         }
         return view
     }
@@ -892,16 +890,4 @@ extension SSCollectionViewPresenter: UIScrollViewDelegate {
     public func scrollViewDidChangeAdjustedContentInset(_ scrollView: UIScrollView) {
         scrollViewDelegateProxy?.scrollViewDidChangeAdjustedContentInset?(scrollView)
     }
-}
-
-// MARK: - ActionHandler Helper
-/// Attaches a type-erased action handler to a view that forwards UI events.
-/// - Parameters:
-///   - view: A `UIView` conforming to `EventForwardingProvider`.
-///   - handler: The `AnyActionHandlingProvider` to receive forwarded actions.
-@MainActor
-fileprivate func assignAnyActionHandler<T: UIView & EventForwardingProvider>(
-    to view: T, handler: AnyActionHandlingProvider
-) {
-    view.ss.assignAnyActionHandler(to: handler)
 }
