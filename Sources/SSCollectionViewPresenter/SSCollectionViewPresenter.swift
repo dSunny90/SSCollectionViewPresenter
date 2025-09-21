@@ -374,7 +374,7 @@ extension SSCollectionViewPresenter {
                     withReuseIdentifier: "\(item.binderType)",
                     for: indexPath
                 )
-                item.bound(to: cell)
+                item.apply(to: cell)
                 if let actionHandler,
                    let aCell = cell as? (UIView & EventForwardingProvider)
                 {
@@ -401,7 +401,7 @@ extension SSCollectionViewPresenter {
                         withReuseIdentifier: reuseIdentifier,
                         for: indexPath
                     )
-                    section.header?.bound(to: v)
+                    section.header?.apply(to: v)
                     if let actionHandler,
                        let aView = v as? (UIView & EventForwardingProvider)
                     {
@@ -417,7 +417,7 @@ extension SSCollectionViewPresenter {
                         withReuseIdentifier: reuseIdentifier,
                         for: indexPath
                     )
-                    section.footer?.bound(to: v)
+                    section.footer?.apply(to: v)
                     if let actionHandler,
                        let aView = v as? (UIView & EventForwardingProvider)
                     {
@@ -509,7 +509,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
             withReuseIdentifier: identifier,
             for: indexPath
         )
-        item.bound(to: cell)
+        item.apply(to: cell)
         if let actionHandler,
            let aCell = cell as? (UIView & EventForwardingProvider)
         {
@@ -541,7 +541,7 @@ extension SSCollectionViewPresenter: UICollectionViewDataSource {
             withReuseIdentifier: identifier,
             for: indexPath
         )
-        item.bound(to: view)
+        item.apply(to: view)
         if let actionHandler,
            let aView = view as? (UIView & EventForwardingProvider)
         {

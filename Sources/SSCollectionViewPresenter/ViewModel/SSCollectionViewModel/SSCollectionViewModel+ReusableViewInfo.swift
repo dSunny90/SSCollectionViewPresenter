@@ -79,7 +79,8 @@ extension SSCollectionViewModel {
         /// Applies the configuration to the given binder instance.
         ///
         /// - Parameter binder: An instance that should match `binderType`.
-        public func bound(to binder: Any) {
+        @MainActor
+        public func apply(to binder: Any) {
             _bindingBlock(binder)
         }
 
