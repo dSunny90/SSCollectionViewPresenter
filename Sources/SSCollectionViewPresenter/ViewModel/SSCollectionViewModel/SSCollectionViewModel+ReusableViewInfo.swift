@@ -36,7 +36,7 @@ extension SSCollectionViewModel {
         private let _contentData: () -> Any?
         private let _binderType: Any.Type
 
-        private let _bindingBlock: (Any) -> Void
+        private let _bindingBlock: @MainActor (Any) -> Void
         private let _sizeBlock: ((CGSize) -> CGSize)?
 
         private let _willDisplayBlock: @MainActor (Any) -> Void
