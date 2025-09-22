@@ -60,7 +60,7 @@ extension SSCollectionViewModel {
             _bindingBlock = { anyBinder in
                 guard let concreteBinder = anyBinder as? T.Binder,
                       let input = boundable.contentData else { return }
-                concreteBinder.configurer(concreteBinder, input)
+                SendingState<T.Binder>(concreteBinder).configure(input)
             }
             _sizeBlock = { constrainedSize in
                 guard let input = boundable.contentData else { return .zero }
