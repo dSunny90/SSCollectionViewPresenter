@@ -38,7 +38,7 @@ extension SSCollectionViewModel {
         private let _binderType: Any.Type
 
         private let _bindingBlock: @MainActor (Any) -> Void
-        private let _sizeBlock: ((CGSize) -> CGSize)?
+        private let _sizeBlock: ((CGSize?) -> CGSize?)?
 
         private let _didHighlightBlock: @MainActor (Any) -> Void
         private let _didUnhighlightBlock: @MainActor (Any) -> Void
@@ -63,10 +63,10 @@ extension SSCollectionViewModel {
                 SendingState<T.Binder>(concreteBinder).configure(input)
             }
             _sizeBlock = { constrainedSize in
-                guard let input = boundable.contentData else { return .zero }
+                guard let input = boundable.contentData else { return nil }
                 return T.Binder.size(
                     with: input, constrainedTo: constrainedSize
-                ) ?? .zero
+                )
             }
             _didHighlightBlock = { anyBinder in
                 guard let cell = anyBinder as? T.Binder,
@@ -109,8 +109,8 @@ extension SSCollectionViewModel {
             _bindingBlock(binder)
         }
 
-        public func itemSize(constrainedTo size: CGSize) -> CGSize {
-            return _sizeBlock?(size) ?? .zero
+        public func itemSize(constrainedTo size: CGSize?) -> CGSize? {
+            return _sizeBlock?(size)
         }
 
         @MainActor

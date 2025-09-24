@@ -692,10 +692,10 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
         else { return defaultItemSize(layout: collectionViewLayout) }
 
         let itemIndex = indexPath.item % items.count
-        guard let item = items[safe: itemIndex]
+        guard let itemSize = items[safe: itemIndex]?.itemSize(constrainedTo: collectionView.bounds.size)
         else { return defaultItemSize(layout: collectionViewLayout) }
 
-        return item.itemSize(constrainedTo: collectionView.bounds.size)
+        return itemSize
     }
 
     public func collectionView(_ collectionView: UICollectionView,
@@ -746,7 +746,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                referenceSizeForHeaderInSection section: Int) -> CGSize {
-        guard let header = viewModel?[safe: section]?.header
+        guard let viewSize = viewModel?[safe: section]?.header?.viewSize(constrainedTo: collectionView.bounds.size)
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.headerReferenceSize
@@ -754,14 +754,13 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                 return .zero
             }
         }
-
-        return header.viewSize(constrainedTo: collectionView.bounds.size)
+        return viewSize
     }
 
     public func collectionView(_ collectionView: UICollectionView,
                                layout collectionViewLayout: UICollectionViewLayout,
                                referenceSizeForFooterInSection section: Int) -> CGSize {
-        guard let footer = viewModel?[safe: section]?.footer
+        guard let viewSize = viewModel?[safe: section]?.footer?.viewSize(constrainedTo: collectionView.bounds.size)
         else {
             if let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout {
                 return flowLayout.footerReferenceSize
@@ -769,8 +768,7 @@ extension SSCollectionViewPresenter: UICollectionViewDelegateFlowLayout {
                 return .zero
             }
         }
-
-        return footer.viewSize(constrainedTo: collectionView.bounds.size)
+        return viewSize
     }
 }
 
