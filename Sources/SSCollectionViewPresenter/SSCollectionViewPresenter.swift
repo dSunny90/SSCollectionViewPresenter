@@ -8,39 +8,40 @@
 import UIKit
 
 // MARK: - SSCollectionViewPresenter
-/// A presenter class that simplifies configuring and managing a
-/// `UICollectionView` based on a `SSCollectionViewModel`.
+
+/// Simplifies configuring and managing a `UICollectionView` with a
+/// `SSCollectionViewModel`.
 ///
-/// - Overview:
-///   - `SSCollectionViewPresenter` bridges the view model
-///     (`SSCollectionViewModel`) with the collection view,
-///     automatically handling data source and delegate methods.
-///   - It allows developers to easily bind cell and supplementary view data,
-///     minimizing boilerplate code while maintaining flexibility.
-///   - Primarily designed for `UICollectionViewFlowLayout`.
-///     `UICollectionViewCompositionalLayout` is also supported,
-///     but using this with `UICollectionViewFlowLayout` is recommended.
+/// `SSCollectionViewPresenter` bridges your view model with the collection view,
+/// automatically handling data source and delegate methods. It provides an
+/// easy way to bind cell and supplementary view data with minimal boilerplate.
+///
+/// - Note: Primarily designed for `UICollectionViewFlowLayout`, though
+///         `UICollectionViewCompositionalLayout` is also supported.
 @MainActor
 public final class SSCollectionViewPresenter: NSObject {
     typealias SectionInfo = SSCollectionViewModel.SectionInfo
     typealias CellInfo = SSCollectionViewModel.CellInfo
     typealias ReusableViewInfo = SSCollectionViewModel.ReusableViewInfo
 
-    // MARK: - Constant
+    // MARK: - Constants
+
     /// Number of times items are duplicated for infinite scrolling.
     internal let duplicatedItemCount: Int = 3
 
-    // MARK: - LayoutKind, DataSourceMode
-    /// The type of layout used by the collection view (e.g., flow, alignment).
+    // MARK: - Configuration
+
+    /// The layout type used by the collection view.
     internal let layoutKind: LayoutKind
 
-    /// Determines whether the data source is diffable or legacy.
+    /// The data source mode (diffable or classic).
     internal let dataSourceMode: DataSourceMode
 
     // MARK: - CollectionView
     internal weak var collectionView: UICollectionView?
 
     // MARK: - ViewModel
+
     /// The current view model backing the collection view.
     internal var viewModel: SSCollectionViewModel? {
         willSet {
@@ -75,12 +76,14 @@ public final class SSCollectionViewPresenter: NSObject {
         }
     }
 
-    // MARK: - ActionHandler
+    // MARK: - Action Handling
+
     /// The action handler responsible for dispatching actions.
     internal var actionHandler: AnyActionHandlingProvider?
 
-    // MARK: - Paginated API Option
-    /// Closure to be called when requesting the next page of data.
+    // MARK: - Pagination
+
+    /// Closure called when the next page of data should be loaded.
     internal var nextRequestBlock: ((SSCollectionViewModel) -> Void)?
 
     // MARK: - UIScrollViewDelegate Proxy
@@ -91,28 +94,30 @@ public final class SSCollectionViewPresenter: NSObject {
     /// Enable layout-controlled paging/snap (replaces `UIScrollView.isPagingEnabled`).
     internal var isCustomPagingEnabled: Bool = false
 
-    /// Indicates whether infinite scroll is enabled.
-    internal var isInfiniteScroll: Bool = false
-
-    /// Indicates whether auto-rolling (carousel style) is enabled.
-    internal var isAutoRolling: Bool = false
-
-    /// Time interval between auto-rolling page transitions.
-    internal var pagingTimeInterval: TimeInterval = 3.0
-
-    /// Snap pages to the viewport center when paging (custom paging required).
+    /// When `true`, snaps pages to the viewport center after scrolling.
     internal var isAlignCenter: Bool = true
 
-    /// Called just before a page becomes visible
+    /// Enables infinite scrolling by duplicating content.
+    internal var isInfinitePage: Bool = false
+
+    /// Enables automatic page transitions at regular intervals.
+    internal var isAutoRolling: Bool = false
+
+    /// Time interval between automatic page transitions, in seconds.
+    internal var pagingTimeInterval: TimeInterval = 3.0
+
+    // MARK: - Page Event Callbacks
+
+    /// Called just before a page becomes visible.
     internal var pageWillAppearBlock: ((UICollectionView, Int) -> Void)?
 
     /// Called right after a page becomes visible
     internal var pageDidAppearBlock: ((UICollectionView, Int) -> Void)?
 
-    /// Called just before a page is no longer visible
+    /// Called just before a page disappears from view.
     internal var pageWillDisappearBlock: ((UICollectionView, Int) -> Void)?
 
-    /// Called right after a page is no longer visible
+    /// Called immediately after a page disappears from view.
     internal var pageDidDisappearBlock: ((UICollectionView, Int) -> Void)?
 
     /// Current scroll direction of the collection view layout.
@@ -139,7 +144,8 @@ public final class SSCollectionViewPresenter: NSObject {
         isCustomPagingEnabled || isInfiniteScroll || isAutoRolling
     }
 
-    // MARK: - DiffableDataSource Support
+    // MARK: - Diffable Data Source Support
+
     @available(iOS 13.0, *)
     private var diffableSupportCore: DiffableSupportCore? {
         get {
@@ -152,7 +158,8 @@ public final class SSCollectionViewPresenter: NSObject {
 
     private var _diffableSupportCore: Any?
 
-    // MARK: - Init
+    // MARK: - Initialization
+
     public init(
         collectionView: UICollectionView,
         layoutKind: LayoutKind,
@@ -178,10 +185,14 @@ public final class SSCollectionViewPresenter: NSObject {
         )
     }
 
-    // MARK: - Presenting Logic
-    /// Applies the latest snapshot to the diffable data source.
+    // MARK: - Presentation
+
+    /// Applies the current snapshot to the diffable data source.
+    ///
+    /// Only applies when using the `.diffable` data source mode. Has no effect
+    /// in traditional mode.
+    ///
     /// - Parameter animated: Whether to animate the changes.
-    /// Only applies when using the `.diffable` data source mode.
     @available(iOS 13.0, *)
     internal func applySnapshot(animated: Bool) {
         guard dataSourceMode == .diffable else { return }
@@ -191,6 +202,12 @@ public final class SSCollectionViewPresenter: NSObject {
     // MARK: - Private Methods
     /// Configures the initial layout of the collection view,
     /// including scroll direction and layout-specific settings.
+    // MARK: - Configuration
+
+    /// Configures the collection view's layout based on the specified layout kind.
+    ///
+    /// Sets up either a `UICollectionViewFlowLayout` or
+    /// `UICollectionViewCompositionalLayout` depending on the configuration.
     private func configureLayout() {
         guard let collectionView else { return }
         switch layoutKind {
@@ -211,8 +228,10 @@ public final class SSCollectionViewPresenter: NSObject {
         }
     }
 
-    /// Sets up the data source for the collection view.
-    /// This may vary depending on whether the traditional or diffable mode is used.
+    /// Configures the data source for the collection view.
+    ///
+    /// Sets up either traditional data source callbacks or a diffable data source
+    /// based on the specified mode.
     private func configureDataSource() {
         guard let collectionView else { return }
         switch dataSourceMode {
@@ -231,10 +250,15 @@ public final class SSCollectionViewPresenter: NSObject {
         }
     }
 
-    /// Determines whether the next page of data should be loaded based on
-    /// current scroll position and internal loading state.
+    // MARK: - Pagination
+
+    /// Determines whether the next page should be loaded based on scroll position.
+    ///
+    /// Checks if the user has scrolled close enough to the end and whether
+    /// pagination is available and not already in progress.
+    ///
     /// - Returns: `true` if the next page should be requested; otherwise, `false`.
-    private func shouldLoadNextPage() -> Bool {
+    internal func shouldLoadNextPage() -> Bool {
         guard let collectionView,
               let viewModel, viewModel.hasNext,
               isLoadingNextPage == false
