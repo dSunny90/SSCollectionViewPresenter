@@ -48,7 +48,7 @@ extension SSCollectionViewModel {
         ///
         /// - Parameter boundable: The concrete `Boundable` to wrap.
         public init<T: Boundable>(_ boundable: T)
-            where T.Binder: InteractiveCollectionReusableView, T.Binder.Input == T.DataType
+            where T.Binder: SSCollectionReusableViewProtocol, T.Binder.Input == T.DataType
         {
             _contentData = { boundable.contentData }
             _binderType = T.Binder.self
@@ -64,14 +64,14 @@ extension SSCollectionViewModel {
                 )
             }
             _willDisplayBlock = { anyBinder in
-                guard let cell = anyBinder as? T.Binder,
+                guard let view = anyBinder as? T.Binder,
                       let input = boundable.contentData else { return }
-                cell.willDisplay(with: input)
+                view.willDisplay(with: input)
             }
             _didEndDisplayingBlock = { anyBinder in
-                guard let cell = anyBinder as? T.Binder,
+                guard let view = anyBinder as? T.Binder,
                       let input = boundable.contentData else { return }
-                cell.didEndDisplaying(with: input)
+                view.didEndDisplaying(with: input)
             }
             _identifier = { boundable.identifier }
         }

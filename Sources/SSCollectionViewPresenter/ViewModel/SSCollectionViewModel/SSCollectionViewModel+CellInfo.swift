@@ -53,7 +53,7 @@ extension SSCollectionViewModel {
         ///
         /// - Parameter boundable: The concrete `Boundable` to wrap.
         public init<T: Boundable>(_ boundable: T)
-            where T.Binder: InteractiveCollectionViewCell, T.Binder.Input == T.DataType
+            where T.Binder: SSCollectionViewCellProtocol, T.Binder.Input == T.DataType
         {
             _contentData = { boundable.contentData }
             _binderType = T.Binder.self
