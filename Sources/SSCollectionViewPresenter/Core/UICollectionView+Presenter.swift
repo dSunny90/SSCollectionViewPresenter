@@ -9,23 +9,10 @@ import UIKit
 
 extension UICollectionView {
     private struct AssociatedKeys {
-        nonisolated(unsafe) static var presenter: UInt8 = 0
         nonisolated(unsafe) static var registeredCellIdentifiers: UInt8 = 0
         nonisolated(unsafe) static var registeredHeaderIdentifiers: UInt8 = 0
         nonisolated(unsafe) static var registeredFooterIdentifiers: UInt8 = 0
-    }
-
-    internal var presenter: SSCollectionViewPresenter? {
-        get {
-            if let obj = objc_getAssociatedObject(self, &AssociatedKeys.presenter) as? SSCollectionViewPresenter {
-                return obj
-            } else {
-                return nil
-            }
-        }
-        set {
-            objc_setAssociatedObject(self, &AssociatedKeys.presenter, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
+        nonisolated(unsafe) static var presenter: UInt8 = 0
     }
 
     public var registeredCellIdentifiers: Set<String> {
@@ -67,6 +54,19 @@ extension UICollectionView {
         }
         set {
             objc_setAssociatedObject(self, &AssociatedKeys.registeredFooterIdentifiers, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    internal var presenter: SSCollectionViewPresenter? {
+        get {
+            if let obj = objc_getAssociatedObject(self, &AssociatedKeys.presenter) as? SSCollectionViewPresenter {
+                return obj
+            } else {
+                return nil
+            }
+        }
+        set {
+            objc_setAssociatedObject(self, &AssociatedKeys.presenter, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 
@@ -122,6 +122,84 @@ extension UICollectionView {
         // 2. Layout default
         return flowLayout.sectionInset
     }
+
+    /// Returns fractional page index from current offset.
+    internal var currentPage: CGFloat {
+        guard pageLength > 0 else { return 0 }
+
+        var adjustedOffset = currentOffset - sectionInsetLeading
+        if isAlignCenter {
+            adjustedOffset += (boundsLength - itemLength) / 2
+        }
+        return adjustedOffset / pageLength
+    }
+
+    /// Returns the first fractional page index.
+    internal var firstPage: CGFloat { return 0 }
+
+    /// Returns the last fractional page index.
+    internal var lastPage:CGFloat {
+        guard pageLength > 0 else { return 0 }
+
+        return (sectionLength + flowLayoutLineSpacing) / pageLength - 1
+    }
+
+    internal var boundsLength: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? bounds.width : bounds.height
+    }
+
+    internal var contentLength: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentSize.width : contentSize.height
+    }
+
+    internal var currentOffset: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentOffset.x : contentOffset.y
+    }
+
+    private var isAlignCenter: Bool { presenter?.isAlignCenter ?? false }
+    private var isLooping: Bool { presenter?.isLooping ?? false }
+
+    private var contentInsetLeading: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentInset.left : contentInset.top
+    }
+
+    private var contentInsetTrailing: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? contentInset.right : contentInset.bottom
+    }
+
+    private var sectionInsetLeading: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? flowLayoutSectionInset.left : flowLayoutSectionInset.top
+    }
+
+    private var sectionInsetTrailing: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? flowLayoutSectionInset.right : flowLayoutSectionInset.bottom
+    }
+
+    private var itemLength: CGFloat {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        return flowLayout.scrollDirection == .horizontal ? flowLayoutItemSize.width : flowLayoutItemSize.height
+    }
+
+    private var pageLength: CGFloat { itemLength + flowLayoutLineSpacing }
+    private var sectionLength: CGFloat { contentLength - (sectionInsetLeading + sectionInsetTrailing) }
+
+    private var baseOffset: CGFloat { contentInsetLeading - sectionInsetLeading }
+    private var minOffset: CGFloat { -contentInsetLeading }
+    private var maxOffset: CGFloat { contentLength - boundsLength + contentInsetTrailing }
+
+    private var isOverMinOffset: Bool { isAlignCenter ? (currentOffset <= centerInitialOffset) : (currentOffset <= minOffset) }
+    private var isOverMaxOffset: Bool { isAlignCenter ? (currentOffset >= centerFinalOffset) : (currentOffset >= maxOffset) }
+
+    private var centerInitialOffset: CGFloat { sectionInsetLeading - (boundsLength - itemLength) / 2 }
+    private var centerCurrentOffset: CGFloat { sectionInsetLeading + currentPage.rounded() * (itemLength + flowLayoutLineSpacing) - (boundsLength - itemLength) / 2 }
+    private var centerFinalOffset: CGFloat { sectionInsetLeading + lastPage * (itemLength + flowLayoutLineSpacing) - (boundsLength - itemLength) / 2 }
 
     public func registerDefaultCell() {
         register(UICollectionViewCell.self, forCellWithReuseIdentifier: String(describing: UICollectionViewCell.self))
@@ -209,296 +287,182 @@ extension UICollectionView {
         )
     }
 
-    /// Remaps the content offset to the middle section if the scroll offset
-    /// moves too close to either duplicated edge (beginning or end).
+    /// Sets the initial content offset for the first item.
     ///
-    /// This is used to create an "infinite scroll" effect by jumping
-    /// back to the logical center of the content when needed.
-    ///
-    /// - Parameter isAlignCenter: If `true`, offsets are remapped so that
-    ///                            the current item snaps to the viewport center
-    ///                            (content-inset aware) after remap.
-    internal func remapContentOffsetIfNeeded(duplicatedItemCount: Int = 3, isAlignCenter: Bool = false) {
-        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return }
-
-        let itemSize = flowLayoutItemSize
-        let lineSpacing = flowLayoutLineSpacing
-        let sectionInset = flowLayoutSectionInset
-        let currentOffset = contentOffset
-
-        if flowLayout.scrollDirection == .horizontal {
-            // Width of a single tiled segment in a 3-part infinite layout:
-            // (total content width) − (side insets) − (gap between the 3 segments = 2 * lineSpacing), then / 3.
-            let segments = duplicatedItemCount
-            let gaps = CGFloat(segments - 1)
-            let boundOffset = ceil(
-                (contentSize.width
-                 - sectionInset.left - sectionInset.right
-                 - (lineSpacing * gaps)) / CGFloat(segments)
-            )
-            // Center shift needed to keep the current item visually centered.
-            let visibleWidth = bounds.width - contentInset.left - contentInset.right
-            let centerShift: CGFloat = isAlignCenter ? max(0, (visibleWidth - itemSize.width) / 2) : 0
-            // ---- Left boundary: we drifted into the left segment -> jump forward into the middle
-            if currentOffset.x < sectionInset.left + boundOffset - centerShift {
-                // Move forward by one segment (+ spacing), optionally minus center shift.
-                setContentOffset(CGPoint(x: currentOffset.x + boundOffset + lineSpacing - centerShift, y: currentOffset.y), animated: false)
-                reloadData()
-            }
-            // ---- Right boundary: we drifted into the right segment → jump back to the middle
-            else if currentOffset.x > sectionInset.left + boundOffset * 2 + centerShift + lineSpacing {
-                // Snap to the start of the middle segment (plus spacing), optionally plus center shift.
-                setContentOffset(CGPoint(x: boundOffset + lineSpacing + centerShift, y: currentOffset.y), animated: false)
-                reloadData()
-            }
+    /// - Behavior:
+    ///   - If `isAlignCenter` is true, centers the first item.
+    ///   - Otherwise, scrolls to the leading edge (respects content inset).
+    /// - Parameter animated: Whether to animate the offset change.
+    internal func setInitialOffsetIfNeeded(animated: Bool) {
+        if isAlignCenter {
+            setContentOffset(value: max(minOffset, centerInitialOffset), animated: animated)
         } else {
-            // Vertical variant: same idea as horizontal, but with heights/Y-axis.
-            let segments = duplicatedItemCount
-            let gaps = CGFloat(segments - 1)
-            let boundOffset = ceil(
-                (contentSize.height
-                 - sectionInset.top - sectionInset.bottom
-                 - (lineSpacing * gaps)) / CGFloat(segments)
-            )
-            let visibleHeight = bounds.height - contentInset.top - contentInset.bottom
-            let centerShift: CGFloat = isAlignCenter ? max(0, (visibleHeight - itemSize.height) / 2) : 0
-            // ---- Top boundary -> jump down into the middle
-            if currentOffset.y < sectionInset.top + boundOffset {
-                setContentOffset(CGPoint(x: currentOffset.x, y: currentOffset.y + boundOffset + lineSpacing - centerShift), animated: false)
-                reloadData()
-            }
-            // ---- Bottom boundary → jump up into the middle
-            else if currentOffset.y > sectionInset.top + boundOffset * 2 + lineSpacing {
-                setContentOffset(CGPoint(x: currentOffset.x, y: boundOffset + lineSpacing + centerShift), animated: false)
-                reloadData()
-            }
+            setContentOffset(value: minOffset, animated: animated)
         }
     }
 
-    /// Computes the target **contentOffset (single axis)** to use inside
-    /// `scrollViewWillEndDragging(_:withVelocity:targetContentOffset:)`,
-    /// snapping to the nearest page and optionally center-aligning the page.
+    /// Sets the final content offset for the last item.
+    ///
+    /// - Behavior:
+    ///   - If `isAlignCenter` is true, centers the last item.
+    ///   - Otherwise, aligns the last page with the trailing edge.
+    /// - Parameter animated: Whether to animate the offset change.
+    internal func setFinalOffsetIfNeeded(animated: Bool) {
+        if isAlignCenter {
+            setContentOffset(value: min(maxOffset, centerFinalOffset), animated: animated)
+        } else {
+            setContentOffset(value: maxOffset, animated: animated)
+        }
+    }
+
+    /// Re-centers contentOffset near duplicated edges to maintain infinite scroll.
+    internal func remapContentOffsetIfNeeded() {
+        guard let segments = presenter?.duplicatedItemCount else { return }
+
+        let lowerBound: CGFloat = {
+            let margins = flowLayoutLineSpacing * CGFloat(segments - 1)
+            let segmentLength = (sectionLength - margins) / CGFloat(segments)
+            return segmentLength + flowLayoutLineSpacing
+        }()
+        let upperBound = lowerBound * CGFloat(segments - 1)
+
+        guard !isOverMinOffset else {
+            let firstOffset: CGFloat = isAlignCenter ? centerInitialOffset : currentOffset
+            setContentOffset(
+                value: firstOffset + lowerBound,
+                animated: false
+            )
+            return
+        }
+
+        var checkOffset = baseOffset + currentOffset
+        if isAlignCenter {
+            checkOffset += max(0, (boundsLength - itemLength - (contentInsetLeading + contentInsetTrailing)) / 2)
+        }
+
+        if checkOffset < lowerBound {
+            setContentOffset(
+                value: currentOffset + lowerBound,
+                animated: false
+            )
+        } else if checkOffset >= upperBound {
+            setContentOffset(
+                value: currentOffset - lowerBound,
+                animated: false
+            )
+        }
+    }
+
+    /// Computes and snaps the target content offset for paging based on swipe
+    /// velocity and the current flow layout, and writes the result into
+    /// targetContentOffset.
+    ///
+    /// - Note: When a user drags beyond the minimum or maximum scrollable range,
+    ///         the scroll view will bounce back to the nearest valid offset.
+    ///         If your goal is simply to keep items centered, you can often
+    ///         achieve it by giving the section insets generous values
+    ///         instead of adding extra paging logic.
     ///
     /// - Parameters:
     ///   - velocity: Scrolling velocity in points/second. Used to bias toward
     ///               next/previous page (ceil/floor) on a fast flick.
-    ///   - isAlignCenter: If `true`, returns an offset that centers the page
-    ///                    (content-inset aware).
-    ///                    If `false`, aligns to the leading edge.
-    /// - Returns: The axis offset to set on `targetContentOffset.pointee`
-    ///            (`x` when horizontal, `y` when vertical).
-    internal func getRemappedTargetContentOffset(velocity: CGPoint, isAlignCenter: Bool = false) -> CGFloat {
-        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+    ///   - targetContentOffset: A pointer to the target content offset provided
+    ///     by UIScrollViewDelegate; this method updates its pointee to the
+    ///     computed page-aligned value.
+    internal func remapTargetContentOffset(withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        guard let scrollDirection = (collectionViewLayout as? UICollectionViewFlowLayout)?.scrollDirection else { return }
 
-        let itemSize = flowLayoutItemSize
-        let lineSpacing = flowLayoutLineSpacing
-        let sectionInset = flowLayoutSectionInset
+        var checkOffset: CGFloat = baseOffset
+        if isAlignCenter {
+            checkOffset += (boundsLength - itemLength) / 2
+        }
 
-        if flowLayout.scrollDirection == .horizontal {
-            // 1. Project a tentative x-offset using velocity (tunable factor 60.0)
-            let targetOffset: CGFloat = contentOffset.x + velocity.x * 60.0
-            // 2. Page size (center-to-center in this implementation)
-            let pageWidth: CGFloat = itemSize.width + lineSpacing
-            guard pageWidth > 0 else { return 0 }
-            // 3. Convert to fractional page index (inset-aware)
-            var targetIndex = (targetOffset + contentInset.left - sectionInset.left) / pageWidth
-            // 4. Clamp so we don't jump more than one page relative to the current one
-            targetIndex = max(targetIndex, floor(currentPage()))
-            targetIndex = min(targetIndex, ceil(currentPage()))
-            // 5. Compute the maximum legal offset/index (bounds/end protection)
-            let maxOffset = contentSize.width - pageWidth + contentInset.right + sectionInset.right
-            let maxIndex = (maxOffset + contentInset.left - sectionInset.left) / pageWidth
-            // 6. Bias by swipe direction (fast flick -> commit to next/prev page)
-            if velocity.x > 0 {
-                targetIndex = ceil(targetIndex)
-            } else if velocity.x < 0 {
-                targetIndex = floor(targetIndex)
-            } else {
-                // No significant velocity: round to the nearest, with tail handling for the last partial page
-                let (maxFloorIndex, lastInterval) = modf(maxIndex)
-                if targetIndex > maxFloorIndex {
-                    targetIndex = (targetIndex >= lastInterval / 2 + maxFloorIndex) ? maxIndex : maxFloorIndex
-                } else {
-                    targetIndex = round(targetIndex)
-                }
-            }
+        let velocityValue = scrollDirection == .horizontal ? velocity.x : velocity.y
+        let targetOffset = currentOffset + velocityValue * 60.0
+        var targetIndex = (checkOffset + targetOffset) / pageLength
 
-            if targetIndex < 0 { targetIndex = 0 }
-            // 7. Convert page index → contentOffset.x
-            var offset: CGFloat = 0
-            if isAlignCenter {
-                if targetIndex > 0 {
-                    // Center snap: compute the first centered position, then step by page width
-                    let firstOffset = sectionInset.left + pageWidth + lineSpacing - (bounds.width - pageWidth) / 2
-                    offset = firstOffset + (pageWidth + lineSpacing) * (targetIndex - 1)
-                } else {
-                    offset = 0
-                }
-            } else {
-                // Leading-edge alignment
-                offset = targetIndex * pageWidth - contentInset.left
-            }
-            // 8. Clamp to content bounds
-            offset = min(offset, maxOffset)
-            return offset
+        if velocityValue > 0 {
+            targetIndex = ceil(targetIndex)
+        } else if velocityValue < 0 {
+            targetIndex = floor(targetIndex)
         } else {
-            // -------- Vertical variant --------
-            let targetOffset: CGFloat = contentOffset.y + velocity.y * 60.0
-            let pageHeight: CGFloat = itemSize.height + lineSpacing
-            guard pageHeight > 0 else { return 0 }
-
-            var targetIndex = (targetOffset + contentInset.top - sectionInset.top) / pageHeight
-
-            targetIndex = max(targetIndex, floor(currentPage()))
-            targetIndex = min(targetIndex, ceil(currentPage()))
-
-            let maxOffset = contentSize.height - pageHeight + contentInset.bottom + sectionInset.bottom
-            let maxIndex = (maxOffset + contentInset.top - sectionInset.top) / pageHeight
-
-            if velocity.y > 0 {
-                targetIndex = ceil(targetIndex)
-            } else if velocity.y < 0 {
-                targetIndex = floor(targetIndex)
+            let (maxFloorIndex, lastInterval) = modf(lastPage)
+            if targetIndex > maxFloorIndex {
+                targetIndex = (targetIndex >= lastInterval / 2 + maxFloorIndex) ? lastPage : maxFloorIndex
             } else {
-                let (maxFloorIndex, lastInterval) = modf(maxIndex)
-                if targetIndex > maxFloorIndex {
-                    targetIndex = (targetIndex >= lastInterval / 2 + maxFloorIndex) ? maxIndex : maxFloorIndex
-                } else {
-                    targetIndex = round(targetIndex)
-                }
+                targetIndex = round(targetIndex)
             }
+        }
 
-            if targetIndex < 0 { targetIndex = 0 }
+        let offset: CGFloat
 
-            var offset: CGFloat = 0
+        if targetIndex >= lastPage {
+            offset = maxOffset
+        } else if targetIndex <= firstPage {
+            offset = minOffset
+        } else {
             if isAlignCenter {
-                if targetIndex > 0 {
-                    let firstOffset = sectionInset.top + pageHeight + lineSpacing - (bounds.height - pageHeight) / 2
-                    offset = firstOffset + (pageHeight + lineSpacing) * (targetIndex - 1)
-                } else {
-                    offset = 0
-                }
+                offset = centerInitialOffset + pageLength * targetIndex
             } else {
-                offset = targetIndex * pageHeight - contentInset.top
+                offset = minOffset + pageLength * targetIndex
             }
+        }
 
-            offset = min(offset, maxOffset)
-            return offset
+        if scrollDirection == .horizontal {
+            targetContentOffset.pointee.x = offset
+        } else {
+            targetContentOffset.pointee.y = offset
         }
     }
 
-    /// Advances the `contentOffset` by **one page** for auto-rolling mode.
-    ///
-    /// This method is intended to be called periodically (e.g., via `perform`)
-    /// to simulate automatic carousel-style scrolling behavior.
-    ///
-    /// - Parameter isAlignCenter: If `true`, compute the next offset
-    ///                            so the item appears centered at rest
-    ///                            (content-inset–aware).
-    ///                            If `false`, align to the leading edge.
-    internal func setAutoRollingContentOffset(isAlignCenter: Bool = false) {
-        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return }
-
-        let itemSize = flowLayoutItemSize
-        let lineSpacing = flowLayoutLineSpacing
-        let sectionInset = flowLayoutSectionInset
-
-        if flowLayout.scrollDirection == .horizontal {
-            // One page width used for indexing/projection.
-            let pageWidth: CGFloat = itemSize.width + lineSpacing
-            guard pageWidth > 0 else { return }
-
-            let nextIndex: CGFloat
-            let nextOffset: CGFloat
-
-            if isAlignCenter {
-                // Stabilize to half-step (… , n.0, n.5, …) so small float noise doesn’t
-                // push us across page thresholds. Example: 20.49/20.51 -> 20.5.
-                let adjustedIndex = snap((contentOffset.x + lineSpacing) / pageWidth, toStep: 0.5)
-                // Move to the next integer page from the half-step anchor.
-                nextIndex = floor(adjustedIndex + 0.5) + 1
-
-                if nextIndex > 0 {
-                    // First centered position for page 1:
-                    //   left inset + first page + spacing − half of (visible − page)
-                    // Then step by (pageWidth + spacing) per page.
-                    let firstOffset = sectionInset.left + pageWidth + lineSpacing - (bounds.width - pageWidth) / 2
-                    nextOffset = firstOffset + (pageWidth + lineSpacing) * (nextIndex - 1)
-                } else {
-                    // Page 0 anchor
-                    nextOffset = sectionInset.left
-                }
-            } else {
-                // Leading-edge alignment: simple page multiple.
-                nextIndex = floor((contentOffset.x + lineSpacing) / pageWidth) + 1
-                nextOffset = sectionInset.left + nextIndex * pageWidth
-            }
-
-            // Clamp/wrap when over-scrolling past content end.
-            let maxOffset = contentSize.width - pageWidth + contentInset.right + sectionInset.right
-            guard nextOffset <= contentSize.width
-            else {
-                setContentOffset(CGPoint(x: sectionInset.left, y: 0), animated: true)
-                return
-            }
-
-            setContentOffset(CGPoint(x: min(nextOffset, maxOffset), y: 0), animated: true)
-        } else {
-            // -------- Vertical variant --------
-            let pageHeight: CGFloat = itemSize.height + lineSpacing
-            guard pageHeight > 0 else { return }
-
-            let nextIndex: CGFloat
-            let nextOffset: CGFloat
-
-            if isAlignCenter {
-                let adjustedIndex = snap((contentOffset.y + lineSpacing) / pageHeight, toStep: 0.5)
-                nextIndex = floor(adjustedIndex + 0.5) + 1
-
-                if nextIndex > 0 {
-                    let firstOffset = sectionInset.top + pageHeight + lineSpacing - (bounds.height - pageHeight) / 2
-                    nextOffset = firstOffset + (pageHeight + lineSpacing) * (nextIndex - 1)
-                } else {
-                    nextOffset = sectionInset.top
-                }
-            } else {
-                nextIndex = floor((contentOffset.y + lineSpacing) / pageHeight) + 1
-                nextOffset = sectionInset.top + nextIndex * pageHeight
-            }
-
-            let maxOffset = contentSize.height - pageHeight + contentInset.bottom + sectionInset.bottom
-            guard nextOffset <= contentSize.height
-            else {
-                setContentOffset(CGPoint(x: 0, y: sectionInset.top), animated: true)
-                return
-            }
-
-            setContentOffset(CGPoint(x: 0, y: min(nextOffset, maxOffset)), animated: true)
+    /// Advances contentOffset by one page in the given direction.
+    /// - Parameters:
+    ///   - steps: positive to go forward, negative to go backward.
+    ///   - animated: Whether the scroll should be animated.
+    internal func scrollPages(by steps: Int, animated: Bool) {
+        guard steps != 0
+        else {
+            presenter?.endProgrammaticScrollAnimating()
+            return
         }
-    }
 
-    /// Returns the **fractional page index** based on the current `contentOffset`,
-    /// using the FlowLayout’s item size and line spacing (0-based, inset-aware).
-    /// Example: 3.0 = page 3 exactly; 3.4 = 40% toward page 4.
-    ///
-    /// - Returns: Fractional page index along the scrolling axis.
-    ///            `0` if unavailable.
-    internal func currentPage() -> CGFloat {
-        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return 0 }
+        guard !(isOverMaxOffset && steps > 0) else {
+            if isLooping {
+                setInitialOffsetIfNeeded(animated: animated)
+            } else {
+                presenter?.endProgrammaticScrollAnimating()
+            }
+            return
+        }
 
-        let itemSize = flowLayoutItemSize
-        let lineSpacing = flowLayoutLineSpacing
-        let sectionInset = flowLayoutSectionInset
+        guard !(isOverMinOffset && steps < 0) else {
+            if isLooping {
+                setFinalOffsetIfNeeded(animated: animated)
+            } else {
+                presenter?.endProgrammaticScrollAnimating()
+            }
+            return
+        }
 
-        if flowLayout.scrollDirection == .horizontal {
-            let pageWidth = itemSize.width + lineSpacing
-            guard pageWidth > 0 else { return 0 }
-            // Inset-aware leading alignment; subtract spacing so page 0 starts at 0
-            return (contentOffset.x + contentInset.left - sectionInset.left - lineSpacing) / pageWidth
+        let targetOffset: CGFloat
+        if isAlignCenter, currentPage.truncatingRemainder(dividingBy: 1) != 0 {
+            targetOffset = centerCurrentOffset + CGFloat(steps) * pageLength
         } else {
-            let pageHeight = itemSize.height + lineSpacing
-            guard pageHeight > 0 else { return 0 }
-            return (contentOffset.y + contentInset.top - sectionInset.top - lineSpacing) / pageHeight
+            targetOffset = currentOffset + CGFloat(steps) * pageLength
+        }
+
+        if targetOffset > maxOffset {
+            setFinalOffsetIfNeeded(animated: animated)
+        } else if targetOffset < minOffset {
+            setInitialOffsetIfNeeded(animated: animated)
+        } else {
+            if steps > 0 && targetOffset + pageLength / 2 > maxOffset {
+                setFinalOffsetIfNeeded(animated: animated)
+            } else if steps < 0 && targetOffset - pageLength / 2 < minOffset {
+                setInitialOffsetIfNeeded(animated: animated)
+            } else {
+                setContentOffset(value: targetOffset, animated: animated)
+            }
         }
     }
 
@@ -521,20 +485,19 @@ extension UICollectionView {
         }
         return false
      }
-}
 
-/// Snaps a scalar to the nearest multiple of `step`.
-/// Uses **banker’s rounding** (`.toNearestOrEven`) to reduce tie bias.
-/// Example: `snap(20.51, 0.5) → 20.5`, `snap(20.75, 0.5) → 21.0`,
-///          `snap(20.25, 0.5) → 20.0` (ties go to even).
-///
-/// - Parameters:
-///   - x: Value to snap.
-///   - step: Step size (> 0).
-/// - Returns: `x` rounded to the nearest multiple of `step` (or `x` if invalid).
-@inline(__always)
-private func snap(_ x: CGFloat, toStep step: CGFloat) -> CGFloat {
-    guard step > 0, x.isFinite else { return x }
-    let inv = 1 / step
-    return (x * inv).rounded(.toNearestOrEven) / inv
+    /// Sets the contentOffset to the given value along the current scroll axis.
+    ///
+    /// - Parameters:
+    ///   - value: The offset value to apply on the horizontal or vertical axis.
+    ///   - animated: Whether to animate the offset change.
+    private func setContentOffset(value: CGFloat, animated: Bool) {
+        guard let flowLayout = collectionViewLayout as? UICollectionViewFlowLayout else { return }
+        let currentOffset = contentOffset
+        if flowLayout.scrollDirection == .horizontal {
+            setContentOffset(CGPoint(x: value, y: currentOffset.y), animated: animated)
+        } else {
+            setContentOffset(CGPoint(x: currentOffset.x, y: value), animated: animated)
+        }
+    }
 }

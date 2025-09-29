@@ -44,10 +44,10 @@ public struct SSCollectionViewModel: RandomAccessCollection, RangeReplaceableCol
     public var hasNext: Bool = false
 
     // MARK: - Init.
-    public init(sections: [SectionInfo] = [], hasNext: Bool = false, page: Int = 0) {
+    public init(sections: [SectionInfo] = [], page: Int = 0, hasNext: Bool = false) {
         self.sections = sections
-        self.hasNext = hasNext
         self.page = page
+        self.hasNext = hasNext
     }
 
     public init() {
